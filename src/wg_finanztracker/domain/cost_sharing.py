@@ -1,0 +1,26 @@
+from wg_finanztracker.domain.models import Purchase
+
+
+def calculate_shares(purchase: Purchase) -> dict[int, int]:
+    shares: dict[int, int] = {}
+
+    for item in purchase.items:
+        if not item.assigned_to:
+            raise ValueError(f"Item '{item.name}' has no assigned members")
+
+        member_count = len(item.assigned_to)
+        base_share = item.price_cents // member_count
+        remainder = item.price_cents % member_count
+
+        for index, member in enumerate(item.assigned_to):
+            share = base_share
+
+            if index < remainder:
+                share += 1
+
+            if member.id not in shares:
+                shares[member.id] = 0
+
+            shares[member.id] += share
+
+    return shares

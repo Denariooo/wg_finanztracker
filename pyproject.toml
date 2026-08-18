@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "wg-finanztracker"
 version = "0.1.0"
@@ -19,3 +23,6 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.16.3",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wg_finanztracker"]
