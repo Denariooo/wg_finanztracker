@@ -24,3 +24,14 @@ def calculate_shares(purchase: Purchase) -> dict[int, int]:
             shares[member.id] += share
 
     return shares
+
+
+def calculate_debts(purchase: Purchase) -> dict[int, int]:
+    shares = calculate_shares(purchase)
+    debts: dict[int, int] = {}
+
+    for member_id, share in shares.items():
+        if member_id != purchase.paid_by.id:
+            debts[member_id] = share
+
+    return debts
