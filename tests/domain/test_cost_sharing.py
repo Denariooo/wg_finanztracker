@@ -5,14 +5,14 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from wg_finanztracker.domain.cost_sharing import calculate_debts, calculate_shares
-from wg_finanztracker.domain.models import Item, Member, Purchase
+from wg_finanztracker.domain.models import Item, Member, Receipt
 
 
 def test_calculate_shares_multiple_items() -> None:
     member_a = Member(id=1, name="A")
     member_b = Member(id=2, name="B")
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=800,
@@ -41,7 +41,7 @@ def test_calculate_shares_with_remainder() -> None:
     member_b = Member(id=2, name="B")
     member_c = Member(id=3, name="C")
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=100,
@@ -64,7 +64,7 @@ def test_calculate_shares_with_remainder() -> None:
 def test_calculate_shares_without_assigned_members() -> None:
     member_a = Member(id=1, name="A")
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=100,
@@ -92,7 +92,7 @@ def test_distribution_preserves_total(
 ) -> None:
     members = [Member(id=i, name=f"Member {i}") for i in range(member_count)]
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=price_cents,
@@ -115,7 +115,7 @@ def test_calculate_debts_with_payer_share() -> None:
     member_a = Member(id=1, name="A")
     member_b = Member(id=2, name="B")
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=800,
@@ -143,7 +143,7 @@ def test_calculate_debts_without_payer_share() -> None:
     member_a = Member(id=1, name="A")
     member_b = Member(id=2, name="B")
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=500,
@@ -167,7 +167,7 @@ def test_calculate_debts_multiple_members() -> None:
     member_b = Member(id=2, name="B")
     member_c = Member(id=3, name="C")
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=900,
@@ -207,7 +207,7 @@ def test_debts_match_non_payer_share(
     payer = Member(id=1, name="Payer")
     other = Member(id=2, name="Other")
 
-    purchase = Purchase(
+    purchase = Receipt(
         store="Test Store",
         purchase_date=date(2026, 8, 18),
         price_cents=payer_share + other_share,

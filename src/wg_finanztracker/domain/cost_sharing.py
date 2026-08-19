@@ -1,7 +1,7 @@
-from wg_finanztracker.domain.models import Purchase
+from wg_finanztracker.domain.models import Receipt
 
 
-def calculate_shares(purchase: Purchase) -> dict[int, int]:
+def calculate_shares(purchase: Receipt) -> dict[int, int]:
     """Calculate each members share of a purchase"""
     shares: dict[int, int] = {}
 
@@ -27,7 +27,7 @@ def calculate_shares(purchase: Purchase) -> dict[int, int]:
     return shares
 
 
-def calculate_debts(purchase: Purchase) -> dict[int, int]:
+def calculate_debts(purchase: Receipt) -> dict[int, int]:
     """Calculate how much each member has to pay the payer of the purchase"""
     shares = calculate_shares(purchase)
     debts: dict[int, int] = {}

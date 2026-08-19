@@ -16,7 +16,7 @@ class Item:
 
 
 @dataclass
-class Purchase:
+class Receipt:
     store: str
     purchase_date: date
     price_cents: int
