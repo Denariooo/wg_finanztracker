@@ -1,0 +1,12 @@
+services:
+  db:
+    image: postgres:17.7
+    environment:
+      POSTGRES_USER: wg_user
+      POSTGRES_PASSWORD: wg_password
+      POSTGRES_DB: wg_finanztracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db:/var/lib/postgresql/data
+      - ./src/wg_finanztracker/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
