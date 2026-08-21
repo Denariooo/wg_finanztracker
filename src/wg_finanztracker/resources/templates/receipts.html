@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>WG Finanztracker - Kassenbons</title>
+        <link href="../static/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-light">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary">
+            <div class="container"><a class="navbar-brand" href="/index">WG Finanztracker</a>
+                <div class="navbar-nav"><a class="nav-link" href="/index"> Start </a><a class="nav-link" href="/members">Mitglieder</a><a class="nav-link active" href="/receipts">Kassenbons</a></div>
+            </div>
+        </nav>
+        <main class="container py-5">
+            <h1 class="mb-4">Kassenbons</h1><button type="button" class="btn btn-primary mb-3">Kassenbon hinzufügen</button>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Händler</th>
+                        <th>Datum</th>
+                        <th>Betrag</th>
+                        <th>Bezahlt von</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Lidl</td>
+                        <td>21.08.2026</td>
+                        <td>19,99 €</td>
+                        <td>Beispielmitglied</td>
+                        <td><button type="button" class="btn btn-info btn-sm">Anzeigen</button><button type="button" class="btn btn-warning btn-sm">Bearbeiten</button><button type="button" class="btn btn-danger btn-sm">Löschen</button></td>
+                    </tr>
+                </tbody>
+            </table><a href="/index" class="btn btn-secondary mt-3">Zurück</a>
+        </main>
+    </body>
+</html>
