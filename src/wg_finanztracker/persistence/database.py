@@ -238,16 +238,19 @@ def get_receipt(receipt_id: int) -> Receipt | None:
     )
 
 
-def get_receipts() -> list[Receipt]:
+def get_receipts() -> list[tuple[int, Receipt]]:
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute("SELECT id FROM receipts")
         rows = cursor.fetchall()
 
     receipts = []
     for row in rows:
-        receipt = get_receipt(row[0])
+        receipt_id = row[0]
+        receipt = get_receipt(receipt_id)
+
         if receipt is not None:
-            receipts.append(receipt)
+            receipts.append((receipt_id, receipt))
+
     return receipts
 
 

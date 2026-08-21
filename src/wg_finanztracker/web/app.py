@@ -1,6 +1,6 @@
-from flask import Flask, render_template
+from flask import Flask, abort, render_template
 
-from wg_finanztracker.persistence.database import get_members, get_receipts
+from wg_finanztracker.persistence.database import get_members, get_receipt, get_receipts
 
 app = Flask(
     __name__,
@@ -23,6 +23,19 @@ def members():
 @app.route("/receipts")
 def receipts():
     return render_template("receipts.html", receipts=get_receipts())
+
+
+@app.route("/receipts/<int:receipt_id>")
+def receipt_detail(receipt_id: int):
+    receipt = get_receipt(receipt_id)
+
+    if receipt is None:
+        abort(404)
+
+    return render_template(
+        "receipt_detail.html",
+        receipt=receipt,
+    )
 
 
 if __name__ == "__main__":

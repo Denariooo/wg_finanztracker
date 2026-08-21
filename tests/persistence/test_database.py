@@ -240,7 +240,7 @@ def test_get_receipts_contains_created_receipt() -> None:
 
     receipts = get_receipts()
 
-    assert receipt in receipts
+    assert (receipt_id, receipt) in receipts
 
     delete_receipt(receipt_id)
     delete_member(member.id)
