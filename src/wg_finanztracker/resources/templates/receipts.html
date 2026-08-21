@@ -25,13 +25,15 @@
                     </tr>
                 </thead>
                 <tbody>
+                {% for receipt in receipts %}
                     <tr>
-                        <td>Lidl</td>
-                        <td>21.08.2026</td>
-                        <td>19,99 €</td>
-                        <td>Beispielmitglied</td>
+                        <td>{{ receipt.store }}</td>
+                        <td>{{ receipt.purchase_date }}</td>
+                        <td>{{ "%.2f"|format(receipt.price_cents / 100) }} €</td>
+                        <td>{{ receipt.paid_by.name }}</td>
                         <td><button type="button" class="btn btn-info btn-sm">Anzeigen</button><button type="button" class="btn btn-warning btn-sm">Bearbeiten</button><button type="button" class="btn btn-danger btn-sm">Löschen</button></td>
                     </tr>
+                {% endfor %}
                 </tbody>
             </table><a href="/index" class="btn btn-secondary mt-3">Zurück</a>
         </main>

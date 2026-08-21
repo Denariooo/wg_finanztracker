@@ -28,10 +28,12 @@
                     </tr>
                 </thead>
                 <tbody>
+                {% for member in members %}
                     <tr>
-                        <td>Beispielmitglied</td>
+                        <td>{{ member.name }}</td>
                         <td><button type="button" class="btn btn-warning btn-sm">Bearbeiten</button><button type="button" class="btn btn-danger btn-sm">Löschen</button></td>
                     </tr>
+                {% endfor %}
                 </tbody>
             </table><a href="/index" class="btn btn-secondary mt-3">Zurück</a>
         </main>
