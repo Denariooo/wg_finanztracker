@@ -16,6 +16,7 @@ from wg_finanztracker.persistence.database import (
     get_receipt,
     get_receipts,
     remove_member_from_item,
+    update_item,
     update_member,
     update_receipt,
 )
@@ -72,6 +73,7 @@ def test_add_and_get_item() -> None:
     items = get_items(receipt_id)
     assert item in items
     delete_receipt(receipt_id)
+    delete_member(member.id)
 
 
 def test_assign_member_to_item() -> None:
@@ -239,6 +241,70 @@ def test_get_receipts_contains_created_receipt() -> None:
     receipts = get_receipts()
 
     assert receipt in receipts
+
+    delete_receipt(receipt_id)
+    delete_member(member.id)
+
+
+def test_update_item() -> None:
+    member = add_member("Testuser")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 20),
+        price_cents=500,
+        paid_by=member,
+        items=[],
+    )
+
+    receipt_id = add_receipt(receipt)
+
+    item = Item(
+        name="Milk",
+        price_cents=200,
+        assigned_to=[],
+    )
+
+    item_id = add_item(receipt_id, item)
+
+    updated_item = Item(
+        name="Oat Milk",
+        price_cents=250,
+        assigned_to=[member],
+    )
+
+    update_item(item_id, updated_item)
+
+    items = get_items(receipt_id)
+
+    assert updated_item in items
+
+    delete_receipt(receipt_id)
+    delete_member(member.id)
+
+
+def test_add_receipt_with_items() -> None:
+    member = add_member("Testuser")
+
+    item = Item(
+        name="Milk",
+        price_cents=199,
+        assigned_to=[member],
+    )
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 20),
+        price_cents=199,
+        paid_by=member,
+        items=[item],
+    )
+
+    receipt_id = add_receipt(receipt)
+
+    loaded = get_receipt(receipt_id)
+
+    assert loaded == receipt
 
     delete_receipt(receipt_id)
     delete_member(member.id)

@@ -57,6 +57,9 @@ def update_member(member: Member) -> None:
             (member.name, member.id),
         )
 
+        if cursor.rowcount == 0:
+            raise ValueError("Member not found")
+
 
 def delete_member(member_id: int) -> None:
     with get_connection() as conn, conn.cursor() as cursor:
@@ -64,6 +67,9 @@ def delete_member(member_id: int) -> None:
             "DELETE FROM members WHERE id = %s",
             (member_id,),
         )
+
+        if cursor.rowcount == 0:
+            raise ValueError("Member not found")
 
 
 def get_item_members(item_id: int) -> list[Member]:
@@ -108,18 +114,32 @@ def get_items(receipt_id: int) -> list[Item]:
 
 def add_item(receipt_id: int, item: Item) -> int:
     with get_connection() as conn, conn.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO items (receipt_id, name, price_cents)
-            VALUES (%s, %s, %s)
-            RETURNING id
-            """,
-            (receipt_id, item.name, item.price_cents),
-        )
-        row = cursor.fetchone()
+        item_id = _add_item(cursor, receipt_id, item)
+
+        for member in item.assigned_to:
+            _assign_member_to_item(cursor, item_id, member.id)
+
+    return item_id
+
+
+def _add_item(
+    cursor,
+    receipt_id: int,
+    item: Item,
+) -> int:
+    cursor.execute(
+        """
+        INSERT INTO items (receipt_id, name, price_cents)
+        VALUES (%s, %s, %s)
+        RETURNING id
+        """,
+        (receipt_id, item.name, item.price_cents),
+    )
+
+    row = cursor.fetchone()
 
     if row is None:
-        raise RuntimeError("Failed to insert item: database did not return an id")
+        raise RuntimeError("Failed to insert item")
 
     return row[0]
 
@@ -135,6 +155,17 @@ def update_item(item_id: int, item: Item) -> None:
             (item.name, item.price_cents, item_id),
         )
 
+        if cursor.rowcount == 0:
+            raise ValueError("Item not found")
+
+        cursor.execute(
+            "DELETE FROM item_assignments WHERE item_id = %s",
+            (item_id,),
+        )
+
+        for member in item.assigned_to:
+            _assign_member_to_item(cursor, item_id, member.id)
+
 
 def delete_item(item_id: int) -> None:
     with get_connection() as conn, conn.cursor() as cursor:
@@ -143,16 +174,27 @@ def delete_item(item_id: int) -> None:
             (item_id,),
         )
 
+        if cursor.rowcount == 0:
+            raise ValueError("Item not found")
+
 
 def assign_member_to_item(item_id: int, member_id: int) -> None:
     with get_connection() as conn, conn.cursor() as cursor:
-        cursor.execute(
-            """
-            INSERT INTO item_assignments (item_id, member_id)
-            VALUES (%s, %s)
-            """,
-            (item_id, member_id),
-        )
+        _assign_member_to_item(cursor, item_id, member_id)
+
+
+def _assign_member_to_item(
+    cursor,
+    item_id: int,
+    member_id: int,
+) -> None:
+    cursor.execute(
+        """
+        INSERT INTO item_assignments (item_id, member_id)
+        VALUES (%s, %s)
+        """,
+        (item_id, member_id),
+    )
 
 
 def remove_member_from_item(item_id: int, member_id: int) -> None:
@@ -164,6 +206,8 @@ def remove_member_from_item(item_id: int, member_id: int) -> None:
             """,
             (item_id, member_id),
         )
+        if cursor.rowcount == 0:
+            raise ValueError("Item assignment not found")
 
 
 def get_receipt(receipt_id: int) -> Receipt | None:
@@ -229,10 +273,24 @@ def add_receipt(receipt: Receipt) -> int:
         )
         row = cursor.fetchone()
 
-    if row is None:
-        raise RuntimeError("Failed to insert receipt: database did not return an id")
+        if row is None:
+            raise RuntimeError(
+                "Failed to insert receipt: database did not return an id"
+            )
 
-    return row[0]
+        receipt_id = row[0]
+
+        for item in receipt.items:
+            item_id = _add_item(cursor, receipt_id, item)
+
+            for member in item.assigned_to:
+                _assign_member_to_item(
+                    cursor,
+                    item_id,
+                    member.id,
+                )
+
+    return receipt_id
 
 
 def update_receipt(receipt_id: int, receipt: Receipt) -> None:
@@ -255,6 +313,9 @@ def update_receipt(receipt_id: int, receipt: Receipt) -> None:
             ),
         )
 
+        if cursor.rowcount == 0:
+            raise ValueError("Receipt not found")
+
 
 def delete_receipt(receipt_id: int) -> None:
     with get_connection() as conn, conn.cursor() as cursor:
@@ -262,3 +323,6 @@ def delete_receipt(receipt_id: int) -> None:
             "DELETE FROM receipts WHERE id = %s",
             (receipt_id,),
         )
+
+        if cursor.rowcount == 0:
+            raise ValueError("Receipt not found")
