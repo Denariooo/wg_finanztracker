@@ -203,3 +203,96 @@ def test_members_returns_empty_page(monkeypatch) -> None:
     response = client.get("/members")
 
     assert response.status_code == 200
+
+
+def test_delete_member_route(monkeypatch) -> None:
+    member = Member(id=42, name="Testuser")
+    deleted_member_ids = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: member,
+    )
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.delete_member",
+        lambda member_id: deleted_member_ids.append(member_id),
+    )
+
+    client = app.test_client()
+    response = client.post("/members/42/delete")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/members"
+    assert deleted_member_ids == [42]
+
+
+def test_delete_receipt_route(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 22),
+        price_cents=1299,
+        paid_by=member,
+        items=[],
+    )
+
+    deleted_receipt_ids = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.delete_receipt",
+        lambda receipt_id: deleted_receipt_ids.append(receipt_id),
+    )
+
+    client = app.test_client()
+    response = client.post("/receipts/42/delete")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/receipts"
+    assert deleted_receipt_ids == [42]
+
+
+def test_delete_member_route_rejects_get() -> None:
+    client = app.test_client()
+
+    response = client.get("/members/42/delete")
+
+    assert response.status_code == 405
+
+
+def test_delete_receipt_route_rejects_get() -> None:
+    client = app.test_client()
+
+    response = client.get("/receipts/42/delete")
+
+    assert response.status_code == 405
+
+
+def test_delete_unknown_member_returns_404(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: None,
+    )
+
+    client = app.test_client()
+    response = client.post("/members/9999999999/delete")
+
+    assert response.status_code == 404
+
+
+def test_delete_unknown_receipt_returns_404(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: None,
+    )
+
+    client = app.test_client()
+    response = client.post("/receipts/9999999999/delete")
+
+    assert response.status_code == 404

@@ -1,7 +1,8 @@
 CREATE TABLE members
 (
     id   serial PRIMARY KEY,
-    name varchar(255) NOT NULL
+    name varchar(255) NOT NULL,
+    active boolean NOT NULL DEFAULT true
 );
 
 CREATE TABLE receipts

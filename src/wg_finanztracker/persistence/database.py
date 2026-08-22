@@ -16,7 +16,7 @@ def get_connection() -> Connection:
 
 def get_members() -> list[Member]:
     with get_connection() as conn, conn.cursor() as cursor:
-        cursor.execute("SELECT id, name FROM members")
+        cursor.execute("SELECT id, name FROM members WHERE active = true")
         rows = cursor.fetchall()
 
     return [Member(id=row[0], name=row[1]) for row in rows]
@@ -64,7 +64,7 @@ def update_member(member: Member) -> None:
 def delete_member(member_id: int) -> None:
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
-            "DELETE FROM members WHERE id = %s",
+            "UPDATE members SET active = false WHERE id = %s",
             (member_id,),
         )
 

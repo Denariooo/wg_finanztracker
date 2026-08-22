@@ -1,7 +1,7 @@
-INSERT INTO members (name)
-VALUES ('Deniz'),
-       ('Max'),
-       ('Lisa');
+INSERT INTO members (name, active)
+VALUES ('Deniz', true),
+       ('Max', true),
+       ('Lisa', true);
 
 INSERT INTO receipts (store, purchase_date, price_cents, paid_by)
 VALUES ('REWE', '2026-08-18', 1097, 1),

@@ -45,7 +45,9 @@
                         </td>
                         <td> {% for member in item.assigned_to %} {{ member.name }}{% if not loop.last %}, {% endif %} {% endfor %} </td>
                     </tr> {% endfor %} </tbody>
-            </table> {% else %} <p>Keine Artikel vorhanden.</p> {% endif %} <div class="mt-4"><button type="button" class="btn btn-warning"> Bearbeiten </button><button type="button" class="btn btn-danger"> Löschen </button><a href="/receipts" class="btn btn-secondary"> Zurück </a></div>
+            </table> {% else %} <p>Keine Artikel vorhanden.</p> {% endif %} <div class="mt-4"><button type="button" class="btn btn-warning"> Bearbeiten </button>
+                <form action="/receipts/{{ receipt_id }}/delete" method="post" class="d-inline"><button type="submit" class="btn btn-danger"> Löschen </button></form><a href="/receipts" class="btn btn-secondary"> Zurück </a>
+            </div>
         </main>
     </body>
 </html>

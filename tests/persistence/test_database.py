@@ -100,7 +100,8 @@ def test_update_member(member: Member) -> None:
 def test_delete_member(member: Member) -> None:
     delete_member(member.id)
 
-    assert get_member(member.id) is None
+    assert member not in get_members()
+    assert get_member(member.id) == member
 
 
 def test_get_members_contains_created_member(member: Member) -> None:
