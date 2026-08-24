@@ -1,6 +1,6 @@
 from datetime import date
 
-from wg_finanztracker.domain.models import Item, Member, Receipt
+from wg_finanztracker.domain.models import Item, Member, Payment, Receipt
 from wg_finanztracker.web.app import app
 
 
@@ -49,6 +49,14 @@ def test_receipt_detail_returns_receipt(monkeypatch) -> None:
     monkeypatch.setattr(
         "wg_finanztracker.web.app.get_receipt",
         lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipts",
+        lambda: [(42, receipt)],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_payments",
+        list,
     )
 
     client = app.test_client()
@@ -111,6 +119,14 @@ def test_receipt_detail_returns_multiple_items(monkeypatch) -> None:
         "wg_finanztracker.web.app.get_receipt",
         lambda receipt_id: receipt,
     )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipts",
+        lambda: [(42, receipt)],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_payments",
+        list,
+    )
 
     client = app.test_client()
     response = client.get("/receipts/42")
@@ -142,6 +158,14 @@ def test_receipt_detail_returns_multiple_assigned_members(monkeypatch) -> None:
         "wg_finanztracker.web.app.get_receipt",
         lambda receipt_id: receipt,
     )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipts",
+        lambda: [(42, receipt)],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_payments",
+        list,
+    )
 
     client = app.test_client()
     response = client.get("/receipts/42")
@@ -166,12 +190,65 @@ def test_receipt_detail_without_items(monkeypatch) -> None:
         "wg_finanztracker.web.app.get_receipt",
         lambda receipt_id: receipt,
     )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipts",
+        lambda: [(42, receipt)],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_payments",
+        list,
+    )
 
     client = app.test_client()
     response = client.get("/receipts/42")
 
     assert response.status_code == 200
     assert b"Keine Artikel vorhanden" in response.data
+
+
+def test_receipt_detail_hides_settled_debts(monkeypatch) -> None:
+    payer = Member(id=1, name="Deniz")
+    debtor = Member(id=2, name="Max")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 22),
+        price_cents=799,
+        paid_by=payer,
+        items=[
+            Item(
+                name="Pizza",
+                price_cents=799,
+                assigned_to=[debtor],
+            ),
+        ],
+    )
+
+    payment = Payment(
+        from_member=debtor,
+        to_member=payer,
+        amount_cents=799,
+        payment_date=date(2026, 8, 23),
+    )
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipts",
+        lambda: [(42, receipt)],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_payments",
+        lambda: [payment],
+    )
+
+    client = app.test_client()
+    response = client.get("/receipts/42")
+
+    assert response.status_code == 200
+    assert b"schuldet" not in response.data
 
 
 def test_members_returns_members(monkeypatch) -> None:

@@ -86,7 +86,24 @@ def receipt_detail(receipt_id: int):
         abort(404)
 
     shares = calculate_shares(receipt)
-    debts = calculate_debts(receipt)
+    receipt_debts = calculate_debts(receipt)
+
+    purchases = [purchase for _, purchase in get_receipts()]
+    total_debts = calculate_total_debts(
+        purchases,
+        get_payments(),
+    )
+
+    debts: dict[int, int] = {}
+
+    for debtor_id, creditor_id, amount in total_debts:
+        if creditor_id != receipt.paid_by.id:
+            continue
+
+        if debtor_id not in receipt_debts:
+            continue
+
+        debts[debtor_id] = amount
 
     members_by_id = {
         receipt.paid_by.id: receipt.paid_by,
