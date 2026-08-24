@@ -1,11 +1,15 @@
 import tempfile
+from datetime import date
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from flask import Flask, abort, redirect, render_template, request
 
+from wg_finanztracker.domain.models import Item, Receipt
 from wg_finanztracker.ocr.service import ReceiptOcrService
 from wg_finanztracker.ocr.tesseract_service import TesseractOcrService
 from wg_finanztracker.persistence.database import (
+    add_receipt,
     delete_member,
     delete_receipt,
     get_member,
@@ -83,7 +87,7 @@ def delete_receipt_route(receipt_id: int):
 )
 def upload_receipt():
     if request.method == "GET":
-        return render_template("receipt_upload.html")
+        return render_template("receipt_upload.html", members=get_members())
 
     uploaded_file = request.files.get("receipt")
 
@@ -91,6 +95,7 @@ def upload_receipt():
         return render_template(
             "receipt_upload.html",
             error="Bitte einen Kassenbon auswählen.",
+            members=get_members(),
         )
 
     suffix = Path(uploaded_file.filename).suffix.lower()
@@ -102,7 +107,8 @@ def upload_receipt():
     }:
         return render_template(
             "receipt_upload.html",
-            error="Nur JPG- und PNG-Dateien " "werden unterstützt.",
+            error="Nur JPG- und PNG-Dateien werden unterstützt.",
+            members=get_members(),
         )
 
     with tempfile.NamedTemporaryFile(
@@ -125,17 +131,165 @@ def upload_receipt():
         OSError,
     ) as error:
         return render_template(
-            "receipt_upload.html",
-            error=str(error),
+            "receipt_upload.html", error=str(error), members=get_members()
         )
 
     finally:
         temporary_path.unlink(missing_ok=True)
 
-    return render_template(
-        "receipt_upload.html",
-        result=result,
-    )
+    return render_template("receipt_upload.html", result=result, members=get_members())
+
+
+@app.post("/receipts/create")
+def create_receipt():
+    members = get_members()
+
+    members_by_id = {member.id: member for member in members}
+
+    store = request.form.get(
+        "store",
+        "",
+    ).strip()
+
+    purchase_date_value = request.form.get(
+        "purchase_date",
+        "",
+    ).strip()
+
+    price_value = request.form.get(
+        "price",
+        "",
+    ).strip()
+
+    paid_by_value = request.form.get(
+        "paid_by",
+        "",
+    ).strip()
+
+    item_indexes = request.form.getlist("item_index")
+
+    try:
+        if not store:
+            raise ValueError("Bitte einen Händler angeben.")
+
+        if not purchase_date_value:
+            raise ValueError("Bitte ein Datum angeben.")
+
+        try:
+            purchase_date = date.fromisoformat(purchase_date_value)
+        except ValueError as error:
+            raise ValueError("Das angegebene Datum ist ungültig.") from error
+
+        if not price_value:
+            raise ValueError("Bitte einen Gesamtbetrag angeben.")
+
+        price_cents = parse_price_cents(price_value)
+
+        if not paid_by_value:
+            raise ValueError("Bitte auswählen, wer den Einkauf bezahlt hat.")
+
+        try:
+            paid_by_id = int(paid_by_value)
+        except ValueError as error:
+            raise ValueError("Ungültiges Mitglied.") from error
+
+        paid_by = members_by_id.get(paid_by_id)
+
+        if paid_by is None:
+            raise ValueError("Das ausgewählte Mitglied existiert nicht.")
+
+        if not item_indexes:
+            raise ValueError("Der Kassenbon muss mindestens einen Artikel enthalten.")
+
+        items: list[Item] = []
+
+        for index in item_indexes:
+            name = request.form.get(
+                f"item_name_{index}",
+                "",
+            ).strip()
+
+            item_price_value = request.form.get(
+                f"item_price_{index}",
+                "",
+            ).strip()
+
+            member_values = request.form.getlist(f"item_members_{index}")
+
+            if not name:
+                raise ValueError("Jeder Artikel benötigt einen Namen.")
+
+            if not item_price_value:
+                raise ValueError(f"Für den Artikel '{name}' fehlt der Preis.")
+
+            item_price_cents = parse_price_cents(item_price_value)
+
+            if not member_values:
+                raise ValueError(
+                    f"Der Artikel '{name}' muss mindestens "
+                    "einem Mitglied zugeordnet werden."
+                )
+
+            assigned_members = []
+
+            for member_value in member_values:
+                try:
+                    member_id = int(member_value)
+                except ValueError as error:
+                    raise ValueError("Ungültige Mitgliederzuordnung.") from error
+
+                member = members_by_id.get(member_id)
+
+                if member is None:
+                    raise ValueError("Ein ausgewähltes Mitglied existiert nicht.")
+
+                assigned_members.append(member)
+
+            items.append(
+                Item(
+                    name=name,
+                    price_cents=item_price_cents,
+                    assigned_to=assigned_members,
+                )
+            )
+
+        receipt = Receipt(
+            store=store,
+            purchase_date=purchase_date,
+            price_cents=price_cents,
+            paid_by=paid_by,
+            items=items,
+        )
+
+        receipt_id = add_receipt(receipt)
+
+    except ValueError as error:
+        return render_template(
+            "receipt_upload.html",
+            error=str(error),
+            members=members,
+        )
+
+    return redirect(f"/receipts/{receipt_id}")
+
+
+def parse_price_cents(value: str) -> int:
+    normalized = value.strip().replace(",", ".")
+
+    try:
+        amount = Decimal(normalized)
+    except InvalidOperation as error:
+        raise ValueError("Ungültiger Preis.") from error
+
+    if amount < 0:
+        raise ValueError("Ein Preis darf nicht negativ sein.")
+
+    # Es sollen höchstens zwei Nachkommastellen
+    # angegeben werden.
+    if amount != amount.quantize(Decimal("0.01")):
+        raise ValueError("Ein Preis darf höchstens zwei Nachkommastellen haben.")
+
+    return int(amount * 100)
 
 
 if __name__ == "__main__":

@@ -8,52 +8,99 @@
     </head>
     <body class="bg-light">
         <nav class="navbar navbar-expand-lg bg-body-tertiary">
-            <div class="container"><a class="navbar-brand" href="/index"> WG Finanztracker </a>
-                <div class="navbar-nav"><a class="nav-link" href="/index"> Start </a><a class="nav-link" href="/members"> Mitglieder </a><a class="nav-link active" href="/receipts"> Kassenbons </a></div>
+            <div class="container"><a class="navbar-brand" href="{{ url_for('index') }}"> WG Finanztracker </a>
+                <div class="navbar-nav"><a class="nav-link" href="{{ url_for('index') }}"> Start </a><a class="nav-link" href="{{ url_for('members') }}"> Mitglieder </a><a class="nav-link active" href="{{ url_for('receipts') }}"> Kassenbons </a></div>
             </div>
         </nav>
         <main class="container py-5">
             <h1 class="mb-4"> Kassenbon erfassen </h1> {% if error %} <div class="alert alert-danger">
                 {{ error }}
-            </div> {% endif %} <form method="post" enctype="multipart/form-data" class="card card-body mb-4">
+            </div> {% endif %} {% if not result %} <form method="post" enctype="multipart/form-data" class="card card-body mb-4">
                 <div class="mb-3"><label for="receipt" class="form-label"> Kassenbon auswählen </label><input class="form-control" type="file" id="receipt" name="receipt" accept=".jpg,.jpeg,.png" required>
-                    <div class="form-text"> Unterstützt werden JPG-, JPEG- und PNG-Dateien. </div>
+                    <div class="form-text"> Unterstützt werden JPG- und PNG-Dateien. </div>
                 </div>
                 <div><button type="submit" class="btn btn-primary"> Bon analysieren </button></div>
-            </form> {% if result %} <h2 class="mb-3"> Erkannte Daten </h2>
-            <div class="card card-body mb-4">
-                <dl class="row mb-0">
-                    <dt class="col-sm-3"> Händler </dt>
-                    <dd class="col-sm-9"> {% if result.store %} {{ result.store }} {% else %} Nicht erkannt {% endif %} </dd>
-                    <dt class="col-sm-3"> Datum </dt>
-                    <dd class="col-sm-9"> {% if result.purchase_date %} {{ result.purchase_date.strftime("%d.%m.%Y") }} {% else %} Nicht erkannt {% endif %} </dd>
-                    <dt class="col-sm-3"> Gesamtbetrag </dt>
-                    <dd class="col-sm-9"> {% if result.price_cents is not none %} {{ "%.2f"|format(result.price_cents / 100) }} € {% else %} Nicht erkannt {% endif %} </dd>
-                    <dt class="col-sm-3"> OCR-Konfidenz </dt>
-                    <dd class="col-sm-9"> {% if result.confidence is not none %} {{ "%.1f"|format(result.confidence * 100) }} % {% else %} Nicht verfügbar {% endif %} </dd>
-                </dl>
-            </div>
-            <h2 class="mb-3"> Artikel </h2> {% if result.items %} <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Artikel</th>
-                            <th>Preis</th>
-                        </tr>
-                    </thead>
-                    <tbody> {% for item in result.items %} <tr>
-                            <td>
-                                {{ item.name }}
-                            </td>
-                            <td>
-                                {{ "%.2f"|format(item.price_cents / 100) }} €
-                            </td>
-                        </tr> {% endfor %} </tbody>
-                </table>
-            </div> {% else %} <div class="alert alert-secondary"> Es wurden keine Artikel erkannt. </div> {% endif %} {% if result.raw_text %} <details class="mt-4">
-                <summary> Rohausgabe anzeigen </summary>
+            </form> {% else %} <div class="alert alert-info"> Die erkannten Daten können vor dem Speichern noch korrigiert und den WG-Mitgliedern zugeordnet werden. </div>
+            <form method="post" action="{{ url_for('create_receipt') }}">
+                <div class="card card-body mb-4">
+                    <h2 class="h4 mb-3"> Allgemeine Daten </h2>
+                    <div class="mb-3"><label for="store" class="form-label"> Händler </label><input type="text" class="form-control" id="store" name="store" value="{{ result.store or '' }}" required></div>
+                    <div class="mb-3"><label for="purchase_date" class="form-label"> Datum </label><input type="date" class="form-control" id="purchase_date" name="purchase_date" value="{% if result.purchase_date %}{{ result.purchase_date.strftime('%Y-%m-%d') }}{% endif %}" required></div>
+                    <div class="mb-3"><label for="price" class="form-label"> Gesamtbetrag </label>
+                        <div class="input-group"><input type="number" class="form-control" id="price" name="price" min="0" step="0.01" value="{% if result.price_cents is not none %}{{ '%.2f'|format(result.price_cents / 100) }}{% endif %}" required><span class="input-group-text"> € </span></div>
+                    </div>
+                    <div class="mb-3"><label for="paid_by" class="form-label"> Bezahlt von </label><select class="form-select" id="paid_by" name="paid_by" required>
+                            <option value=""> Mitglied auswählen </option> {% for member in members %} <option value="{{ member.id }}">
+                                {{ member.name }}
+                            </option> {% endfor %}
+                        </select></div>
+                    <div class="text-muted"> Ergebnisqualität: {% if result.confidence is not none %} {{ "%.1f"|format(result.confidence * 100) }} % {% else %} Nicht verfügbar {% endif %} </div>
+                </div>
+                <h2 class="h4 mb-3"> Artikel </h2>
+                <div id="items" data-next-index="{{ result.items|length }}"> {% for item in result.items %} {% set item_index = loop.index0 %} <div class="card card-body mb-3 item" data-index="{{ item_index }}"><input type="hidden" name="item_index" value="{{ item_index }}">
+                        <div class="row g-3">
+                            <div class="col-md-7"><label for="item_name_{{ item_index }}" class="form-label"> Artikel </label><input type="text" class="form-control" id="item_name_{{ item_index }}" name="item_name_{{ item_index }}" value="{{ item.name }}" required></div>
+                            <div class="col-md-4"><label for="item_price_{{ item_index }}" class="form-label"> Preis </label>
+                                <div class="input-group"><input type="number" class="form-control" id="item_price_{{ item_index }}" name="item_price_{{ item_index }}" min="0" step="0.01" value="{{ '%.2f'|format(item.price_cents / 100) }}" required><span class="input-group-text"> € </span></div>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end"><button type="button" class="btn btn-outline-danger w-100 remove-item" title="Artikel entfernen"> × </button></div>
+                        </div>
+                        <div class="mt-3"><label for="item_members_{{ item_index }}" class="form-label"> Aufteilen auf </label><select class="form-select" id="item_members_{{ item_index }}" name="item_members_{{ item_index }}" multiple required> {% for member in members %} <option value="{{ member.id }}">
+                                    {{ member.name }}
+                                </option> {% endfor %} </select>
+                            <div class="form-text"> Mehrere Mitglieder können ausgewählt werden. Unter Windows dafür Strg gedrückt halten. </div>
+                        </div>
+                    </div> {% endfor %} </div><button type="button" class="btn btn-outline-primary mb-4" id="add-item"> + Artikel hinzufügen </button> {% if not members %} <div class="alert alert-warning"> Es sind noch keine Mitglieder vorhanden. Vor dem Speichern muss mindestens ein Mitglied angelegt werden. </div> {% endif %} <div class="d-flex gap-2"><button type="submit" class="btn btn-primary" {% if not members %}disabled{% endif %}> Kassenbon speichern </button><a href="{{ url_for('upload_receipt') }}" class="btn btn-secondary"> Abbrechen </a></div>
+            </form><template id="item-template">
+                <div class="card card-body mb-3 item" data-index="__INDEX__"><input type="hidden" name="item_index" value="__INDEX__">
+                    <div class="row g-3">
+                        <div class="col-md-7"><label for="item_name___INDEX__" class="form-label"> Artikel </label><input type="text" class="form-control" id="item_name___INDEX__" name="item_name___INDEX__" required></div>
+                        <div class="col-md-4"><label for="item_price___INDEX__" class="form-label"> Preis </label>
+                            <div class="input-group"><input type="number" class="form-control" id="item_price___INDEX__" name="item_price___INDEX__" min="0" step="0.01" required><span class="input-group-text"> € </span></div>
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end"><button type="button" class="btn btn-outline-danger w-100 remove-item" title="Artikel entfernen"> × </button></div>
+                    </div>
+                    <div class="mt-3"><label for="item_members___INDEX__" class="form-label"> Aufteilen auf </label><select class="form-select" id="item_members___INDEX__" name="item_members___INDEX__" multiple required> {% for member in members %} <option value="{{ member.id }}">
+                                {{ member.name }}
+                            </option> {% endfor %} </select>
+                        <div class="form-text"> Mehrere Mitglieder können ausgewählt werden. Unter Windows dafür Strg gedrückt halten. </div>
+                    </div>
+                </div>
+            </template> {% if result.raw_text %} <details class="mt-4">
+                <summary> OCR-Rohausgabe anzeigen </summary>
                 <pre class="mt-3 p-3 bg-white border rounded">{{ result.raw_text }}</pre>
-            </details> {% endif %} {% endif %} <a href="/receipts" class="btn btn-secondary mt-3"> Zurück </a>
+            </details> {% endif %} {% endif %} <a href="{{ url_for('receipts') }}" class="btn btn-link mt-3 px-0"> Zurück zu den Kassenbons </a>
         </main>
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const itemsContainer = document.getElementById("items");
+                const addItemButton = document.getElementById("add-item");
+                const itemTemplate = document.getElementById("item-template");
+                if (itemsContainer === null || addItemButton === null || itemTemplate === null) {
+                    return;
+                }
+                let nextItemIndex = Number(itemsContainer.dataset.nextIndex);
+                addItemButton.addEventListener("click", function() {
+                    const index = nextItemIndex;
+                    nextItemIndex += 1;
+                    const html = itemTemplate.innerHTML.replaceAll("__INDEX__", String(index));
+                    itemsContainer.insertAdjacentHTML("beforeend", html);
+                });
+                itemsContainer.addEventListener("click", function(event) {
+                    const target = event.target;
+                    if (!(target instanceof Element)) {
+                        return;
+                    }
+                    const removeButton = target.closest(".remove-item");
+                    if (removeButton === null) {
+                        return;
+                    }
+                    const item = removeButton.closest(".item");
+                    if (item !== null) {
+                        item.remove();
+                    }
+                });
+            });
+        </script>
     </body>
 </html>
