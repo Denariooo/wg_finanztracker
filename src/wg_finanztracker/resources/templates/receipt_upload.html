@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>WG Finanztracker - Kassenbon erfassen</title>
+        <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    </head>
+    <body class="bg-light">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary">
+            <div class="container"><a class="navbar-brand" href="/index"> WG Finanztracker </a>
+                <div class="navbar-nav"><a class="nav-link" href="/index"> Start </a><a class="nav-link" href="/members"> Mitglieder </a><a class="nav-link active" href="/receipts"> Kassenbons </a></div>
+            </div>
+        </nav>
+        <main class="container py-5">
+            <h1 class="mb-4"> Kassenbon erfassen </h1> {% if error %} <div class="alert alert-danger">
+                {{ error }}
+            </div> {% endif %} <form method="post" enctype="multipart/form-data" class="card card-body mb-4">
+                <div class="mb-3"><label for="receipt" class="form-label"> Kassenbon auswählen </label><input class="form-control" type="file" id="receipt" name="receipt" accept=".jpg,.jpeg,.png" required>
+                    <div class="form-text"> Unterstützt werden JPG-, JPEG- und PNG-Dateien. </div>
+                </div>
+                <div><button type="submit" class="btn btn-primary"> Bon analysieren </button></div>
+            </form> {% if result %} <h2 class="mb-3"> Erkannte Daten </h2>
+            <div class="card card-body mb-4">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3"> Händler </dt>
+                    <dd class="col-sm-9"> {% if result.store %} {{ result.store }} {% else %} Nicht erkannt {% endif %} </dd>
+                    <dt class="col-sm-3"> Datum </dt>
+                    <dd class="col-sm-9"> {% if result.purchase_date %} {{ result.purchase_date.strftime("%d.%m.%Y") }} {% else %} Nicht erkannt {% endif %} </dd>
+                    <dt class="col-sm-3"> Gesamtbetrag </dt>
+                    <dd class="col-sm-9"> {% if result.price_cents is not none %} {{ "%.2f"|format(result.price_cents / 100) }} € {% else %} Nicht erkannt {% endif %} </dd>
+                    <dt class="col-sm-3"> OCR-Konfidenz </dt>
+                    <dd class="col-sm-9"> {% if result.confidence is not none %} {{ "%.1f"|format(result.confidence * 100) }} % {% else %} Nicht verfügbar {% endif %} </dd>
+                </dl>
+            </div>
+            <h2 class="mb-3"> Artikel </h2> {% if result.items %} <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Artikel</th>
+                            <th>Preis</th>
+                        </tr>
+                    </thead>
+                    <tbody> {% for item in result.items %} <tr>
+                            <td>
+                                {{ item.name }}
+                            </td>
+                            <td>
+                                {{ "%.2f"|format(item.price_cents / 100) }} €
+                            </td>
+                        </tr> {% endfor %} </tbody>
+                </table>
+            </div> {% else %} <div class="alert alert-secondary"> Es wurden keine Artikel erkannt. </div> {% endif %} {% if result.raw_text %} <details class="mt-4">
+                <summary> Rohausgabe anzeigen </summary>
+                <pre class="mt-3 p-3 bg-white border rounded">{{ result.raw_text }}</pre>
+            </details> {% endif %} {% endif %} <a href="/receipts" class="btn btn-secondary mt-3"> Zurück </a>
+        </main>
+    </body>
+</html>
