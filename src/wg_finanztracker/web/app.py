@@ -8,6 +8,7 @@ from flask import Flask, abort, redirect, render_template, request
 from wg_finanztracker.domain.cost_sharing import (
     calculate_debts,
     calculate_shares,
+    calculate_total_debts,
 )
 from wg_finanztracker.domain.models import Item, Receipt
 from wg_finanztracker.ocr.service import ReceiptOcrService
@@ -38,7 +39,33 @@ ocr_service: ReceiptOcrService = TesseractOcrService()
 @app.route("/")
 @app.route("/index")
 def index():
-    return render_template("index.html")
+    receipt_entries = get_receipts()
+
+    purchases = [receipt for _, receipt in receipt_entries]
+
+    total_debts = calculate_total_debts(purchases)
+
+    members_by_id = {}
+
+    for receipt in purchases:
+        members_by_id[receipt.paid_by.id] = receipt.paid_by
+
+        for item in receipt.items:
+            for member in item.assigned_to:
+                members_by_id[member.id] = member
+
+    recent_receipts = sorted(
+        receipt_entries,
+        key=lambda entry: entry[1].purchase_date,
+        reverse=True,
+    )[:5]
+
+    return render_template(
+        "index.html",
+        total_debts=total_debts,
+        members_by_id=members_by_id,
+        recent_receipts=recent_receipts,
+    )
 
 
 @app.route("/members")

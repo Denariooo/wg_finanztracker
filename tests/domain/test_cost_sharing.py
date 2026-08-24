@@ -4,7 +4,11 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from wg_finanztracker.domain.cost_sharing import calculate_debts, calculate_shares
+from wg_finanztracker.domain.cost_sharing import (
+    calculate_debts,
+    calculate_shares,
+    calculate_total_debts,
+)
 from wg_finanztracker.domain.models import Item, Member, Receipt
 
 
@@ -229,3 +233,147 @@ def test_debts_match_non_payer_share(
     debts = calculate_debts(purchase)
 
     assert sum(debts.values()) == other_share
+
+
+def test_calculate_total_debts_offsets_opposing_debts() -> None:
+    member_a = Member(id=1, name="A")
+    member_b = Member(id=2, name="B")
+
+    purchase_a = Receipt(
+        store="Store A",
+        purchase_date=date(2026, 8, 18),
+        price_cents=1000,
+        paid_by=member_a,
+        items=[
+            Item(
+                name="Item",
+                price_cents=1000,
+                assigned_to=[member_b],
+            )
+        ],
+    )
+
+    purchase_b = Receipt(
+        store="Store B",
+        purchase_date=date(2026, 8, 19),
+        price_cents=400,
+        paid_by=member_b,
+        items=[
+            Item(
+                name="Item",
+                price_cents=400,
+                assigned_to=[member_a],
+            )
+        ],
+    )
+
+    debts = calculate_total_debts([purchase_a, purchase_b])
+
+    assert debts == [(2, 1, 600)]
+
+
+def test_calculate_total_debts_simplifies_chain() -> None:
+    member_a = Member(id=1, name="A")
+    member_b = Member(id=2, name="B")
+    member_c = Member(id=3, name="C")
+
+    purchase_a = Receipt(
+        store="Store A",
+        purchase_date=date(2026, 8, 18),
+        price_cents=1000,
+        paid_by=member_a,
+        items=[
+            Item(
+                name="Item",
+                price_cents=1000,
+                assigned_to=[member_b],
+            )
+        ],
+    )
+
+    purchase_b = Receipt(
+        store="Store B",
+        purchase_date=date(2026, 8, 19),
+        price_cents=1000,
+        paid_by=member_c,
+        items=[
+            Item(
+                name="Item",
+                price_cents=1000,
+                assigned_to=[member_a],
+            )
+        ],
+    )
+
+    debts = calculate_total_debts([purchase_a, purchase_b])
+
+    assert debts == [(2, 3, 1000)]
+
+
+def test_calculate_total_debts_returns_empty_when_balanced() -> None:
+    member_a = Member(id=1, name="A")
+    member_b = Member(id=2, name="B")
+
+    purchase_a = Receipt(
+        store="Store A",
+        purchase_date=date(2026, 8, 18),
+        price_cents=500,
+        paid_by=member_a,
+        items=[
+            Item(
+                name="Item",
+                price_cents=500,
+                assigned_to=[member_b],
+            )
+        ],
+    )
+
+    purchase_b = Receipt(
+        store="Store B",
+        purchase_date=date(2026, 8, 19),
+        price_cents=500,
+        paid_by=member_b,
+        items=[
+            Item(
+                name="Item",
+                price_cents=500,
+                assigned_to=[member_a],
+            )
+        ],
+    )
+
+    debts = calculate_total_debts([purchase_a, purchase_b])
+
+    assert debts == []
+
+
+def test_calculate_total_debts_multiple_members() -> None:
+    member_a = Member(id=1, name="A")
+    member_b = Member(id=2, name="B")
+    member_c = Member(id=3, name="C")
+
+    purchase = Receipt(
+        store="Test Store",
+        purchase_date=date(2026, 8, 18),
+        price_cents=900,
+        paid_by=member_a,
+        items=[
+            Item(
+                name="Item B",
+                price_cents=400,
+                assigned_to=[member_b],
+            ),
+            Item(
+                name="Item C",
+                price_cents=500,
+                assigned_to=[member_c],
+            ),
+        ],
+    )
+
+    debts = calculate_total_debts([purchase])
+
+    assert debts == [
+        (2, 1, 400),
+        (3, 1, 500),
+    ]
