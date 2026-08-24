@@ -5,6 +5,10 @@ from pathlib import Path
 
 from flask import Flask, abort, redirect, render_template, request
 
+from wg_finanztracker.domain.cost_sharing import (
+    calculate_debts,
+    calculate_shares,
+)
 from wg_finanztracker.domain.models import Item, Receipt
 from wg_finanztracker.ocr.service import ReceiptOcrService
 from wg_finanztracker.ocr.tesseract_service import TesseractOcrService
@@ -54,10 +58,24 @@ def receipt_detail(receipt_id: int):
     if receipt is None:
         abort(404)
 
+    shares = calculate_shares(receipt)
+    debts = calculate_debts(receipt)
+
+    members_by_id = {
+        receipt.paid_by.id: receipt.paid_by,
+    }
+
+    for item in receipt.items:
+        for member in item.assigned_to:
+            members_by_id[member.id] = member
+
     return render_template(
         "receipt_detail.html",
         receipt=receipt,
         receipt_id=receipt_id,
+        shares=shares,
+        debts=debts,
+        members_by_id=members_by_id,
     )
 
 

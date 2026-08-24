@@ -4,50 +4,90 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>WG Finanztracker - Kassenbon</title>
-        <link href="../static/css/bootstrap.min.css" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
     </head>
     <body class="bg-light">
         <nav class="navbar navbar-expand-lg bg-body-tertiary">
-            <div class="container"><a class="navbar-brand" href="/index"> WG Finanztracker </a>
-                <div class="navbar-nav"><a class="nav-link" href="/index"> Start </a><a class="nav-link" href="/members"> Mitglieder </a><a class="nav-link active" href="/receipts"> Kassenbons </a></div>
+            <div class="container"><a class="navbar-brand" href="{{ url_for('index') }}"> WG Finanztracker </a>
+                <div class="navbar-nav"><a class="nav-link" href="{{ url_for('index') }}"> Start </a><a class="nav-link" href="{{ url_for('members') }}"> Mitglieder </a><a class="nav-link active" href="{{ url_for('receipts') }}"> Kassenbons </a></div>
             </div>
         </nav>
         <main class="container py-5">
-            <h1 class="mb-4">Kassenbon</h1>
-            <div class="mb-4">
-                <p><strong>Händler:</strong>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="mb-0">
                     {{ receipt.store }}
-                </p>
-                <p><strong>Datum:</strong>
-                    {{ receipt.purchase_date }}
-                </p>
-                <p><strong>Gesamtbetrag:</strong>
-                    {{ "%.2f"|format(receipt.price_cents / 100) }} €
-                </p>
-                <p><strong>Bezahlt von:</strong>
-                    {{ receipt.paid_by.name }}
-                </p>
+                </h1>
+                <form method="post" action="{{ url_for('delete_receipt_route', receipt_id=receipt_id) }}" onsubmit="return confirm('Kassenbon wirklich löschen?');"><button type="submit" class="btn btn-outline-danger"> Löschen </button></form>
             </div>
-            <h2 class="mb-3">Artikel</h2> {% if receipt.items %} <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Artikel</th>
-                        <th>Preis</th>
-                        <th>Zugeordnet an</th>
-                    </tr>
-                </thead>
-                <tbody> {% for item in receipt.items %} <tr>
-                        <td>
-                            {{ item.name }}
-                        </td>
-                        <td>
-                            {{ "%.2f"|format(item.price_cents / 100) }} €
-                        </td>
-                        <td> {% for member in item.assigned_to %} {{ member.name }}{% if not loop.last %}, {% endif %} {% endfor %} </td>
-                    </tr> {% endfor %} </tbody>
-            </table> {% else %} <p>Keine Artikel vorhanden.</p> {% endif %} <div class="mt-4"><button type="button" class="btn btn-warning"> Bearbeiten </button>
-                <form action="/receipts/{{ receipt_id }}/delete" method="post" class="d-inline"><button type="submit" class="btn btn-danger"> Löschen </button></form><a href="/receipts" class="btn btn-secondary"> Zurück </a>
+            <div class="card card-body mb-4">
+                <h2 class="h4 mb-3"> Kassenbon </h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-3"> Händler </dt>
+                    <dd class="col-sm-9">
+                        {{ receipt.store }}
+                    </dd>
+                    <dt class="col-sm-3"> Datum </dt>
+                    <dd class="col-sm-9">
+                        {{ receipt.purchase_date.strftime("%d.%m.%Y") }}
+                    </dd>
+                    <dt class="col-sm-3"> Gesamtbetrag </dt>
+                    <dd class="col-sm-9">
+                        {{ "%.2f"|format(receipt.price_cents / 100) }} €
+                    </dd>
+                    <dt class="col-sm-3"> Bezahlt von </dt>
+                    <dd class="col-sm-9">
+                        {{ receipt.paid_by.name }}
+                    </dd>
+                </dl>
             </div>
+            <h2 class="h4 mb-3"> Artikel </h2> {% if receipt.items %} <div class="table-responsive mb-4">
+                <table class="table table-striped align-middle">
+                    <thead>
+                        <tr>
+                            <th> Artikel </th>
+                            <th> Preis </th>
+                            <th> Aufgeteilt auf </th>
+                        </tr>
+                    </thead>
+                    <tbody> {% for item in receipt.items %} <tr>
+                            <td>
+                                {{ item.name }}
+                            </td>
+                            <td>
+                                {{ "%.2f"|format(item.price_cents / 100) }} €
+                            </td>
+                            <td> {% for member in item.assigned_to %} <span class="badge text-bg-secondary">
+                                    {{ member.name }}
+                                </span> {% else %} <span class="text-muted"> Niemand </span> {% endfor %} </td>
+                        </tr> {% endfor %} </tbody>
+                </table>
+            </div> {% else %} <div class="alert alert-secondary"> Keine Artikel vorhanden. </div> {% endif %} <h2 class="h4 mb-3"> Kostenaufteilung </h2> {% if shares %} <div class="card card-body mb-4">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th> Mitglied </th>
+                            <th> Anteil </th>
+                        </tr>
+                    </thead>
+                    <tbody> {% for member_id, share in shares.items() %} <tr>
+                            <td>
+                                {{ members_by_id[member_id].name }}
+                            </td>
+                            <td>
+                                {{ "%.2f"|format(share / 100) }} €
+                            </td>
+                        </tr> {% endfor %} </tbody>
+                </table>
+            </div> {% else %} <div class="alert alert-secondary"> Für diesen Kassenbon konnte keine Kostenaufteilung berechnet werden. </div> {% endif %} <h2 class="h4 mb-3"> Offene Beträge </h2> {% if debts %} <div class="card card-body mb-4">
+                <div class="list-group list-group-flush"> {% for member_id, amount in debts.items() %} <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div><strong>
+                                {{ members_by_id[member_id].name }}
+                            </strong> schuldet <strong>
+                                {{ receipt.paid_by.name }}
+                            </strong></div><span class="fw-bold">
+                            {{ "%.2f"|format(amount / 100) }} € </span>
+                    </div> {% endfor %} </div>
+            </div> {% else %} <div class="alert alert-success"> Für diesen Kassenbon gibt es keine offenen Beträge gegenüber anderen Mitgliedern. </div> {% endif %} <a href="{{ url_for('receipts') }}" class="btn btn-secondary"> Zurück zu den Kassenbons </a>
         </main>
     </body>
 </html>
