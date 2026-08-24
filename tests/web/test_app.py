@@ -1,7 +1,10 @@
 from datetime import date
+from io import BytesIO
+
+import pytest
 
 from wg_finanztracker.domain.models import Item, Member, Payment, Receipt
-from wg_finanztracker.web.app import app
+from wg_finanztracker.web.app import app, parse_price_cents
 
 
 def test_receipts_returns_receipts(monkeypatch) -> None:
@@ -373,3 +376,164 @@ def test_delete_unknown_receipt_returns_404(monkeypatch) -> None:
     response = client.post("/receipts/9999999999/delete")
 
     assert response.status_code == 404
+
+
+def test_parse_price_cents_accepts_comma() -> None:
+    assert parse_price_cents("12,34") == 1234
+
+
+def test_parse_price_cents_rejects_more_than_two_decimals() -> None:
+    with pytest.raises(ValueError, match="h.chstens zwei Nachkommastellen"):
+        parse_price_cents("12.345")
+
+
+def test_parse_price_cents_rejects_negative_values() -> None:
+    with pytest.raises(ValueError, match="nicht negativ"):
+        parse_price_cents("-0.01")
+
+
+def test_create_payment_rejects_non_numeric_member_ids() -> None:
+    client = app.test_client()
+    response = client.post(
+        "/payments/create",
+        data={
+            "debtor_id": "x",
+            "creditor_id": "1",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_create_payment_returns_404_for_unknown_member(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: None,
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/payments/create",
+        data={
+            "debtor_id": "1",
+            "creditor_id": "2",
+        },
+    )
+
+    assert response.status_code == 404
+
+
+def test_create_payment_rejects_same_member(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: member,
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/payments/create",
+        data={
+            "debtor_id": "1",
+            "creditor_id": "1",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_create_payment_rejects_when_pair_has_no_open_debt(monkeypatch) -> None:
+    debtor = Member(id=1, name="Deniz")
+    creditor = Member(id=2, name="Max")
+    members = {
+        1: debtor,
+        2: creditor,
+    }
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: members.get(member_id),
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipts",
+        list,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_payments",
+        list,
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/payments/create",
+        data={
+            "debtor_id": "1",
+            "creditor_id": "2",
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_upload_receipt_requires_file(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [Member(id=1, name="Deniz")],
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/upload",
+        data={},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"Kassenbon ausw" in response.data
+
+
+def test_upload_receipt_rejects_unsupported_extension(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [Member(id=1, name="Deniz")],
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/upload",
+        data={
+            "receipt": (BytesIO(b"pdf"), "bon.pdf"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"Nur JPG- und PNG-Dateien" in response.data
+
+
+def test_upload_receipt_shows_ocr_error(monkeypatch) -> None:
+    class FailingOcrService:
+        def recognize(self, image_path):
+            raise ValueError("OCR fehlgeschlagen")
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [Member(id=1, name="Deniz")],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.ocr_service",
+        FailingOcrService(),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/upload",
+        data={
+            "receipt": (BytesIO(b"image"), "bon.png"),
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 200
+    assert b"OCR fehlgeschlagen" in response.data
