@@ -32,3 +32,12 @@ CREATE TABLE item_assignments
     FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE,
     FOREIGN KEY (member_id) REFERENCES members (id)
 );
+
+CREATE TABLE payments (
+    id serial PRIMARY KEY,
+    from_member int NOT NULL REFERENCES members(id),
+    to_member int NOT NULL REFERENCES members(id),
+    amount_cents int NOT NULL CHECK (amount_cents > 0),
+    payment_date date NOT NULL,
+    CHECK (from_member <> to_member)
+);

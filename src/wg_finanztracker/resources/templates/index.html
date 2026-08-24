@@ -23,8 +23,11 @@
                                     {{ members_by_id[debtor_id].name }}
                                 </strong> schuldet <strong>
                                     {{ members_by_id[creditor_id].name }}
-                                </strong></div><span class="fw-bold">
-                                {{ "%.2f"|format(amount / 100) }} € </span>
+                                </strong></div>
+                            <div class="d-flex align-items-center gap-3"><span class="fw-bold">
+                                    {{ "%.2f"|format(amount / 100) }} € </span>
+                                <form method="post" action="{{ url_for('create_payment') }}" class="mb-0" onsubmit="return confirm('Betrag wirklich als beglichen markieren?');"><input type="hidden" name="debtor_id" value="{{ debtor_id }}"><input type="hidden" name="creditor_id" value="{{ creditor_id }}"><button type="submit" class="btn btn-sm btn-outline-success"> Begleichen </button></form>
+                            </div>
                         </div> {% endfor %} </div>
                 </div> {% else %} <div class="alert alert-success"> Aktuell sind alle Ausgaben ausgeglichen. </div> {% endif %}
             </section>

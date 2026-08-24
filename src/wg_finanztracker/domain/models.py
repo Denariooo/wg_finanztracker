@@ -22,3 +22,11 @@ class Receipt:
     price_cents: int
     paid_by: Member
     items: list[Item]
+
+
+@dataclass
+class Payment:
+    from_member: Member
+    to_member: Member
+    amount_cents: int
+    payment_date: date

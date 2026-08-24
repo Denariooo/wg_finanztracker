@@ -1,7 +1,7 @@
 import psycopg
 from psycopg import Connection
 
-from wg_finanztracker.domain.models import Item, Member, Receipt
+from wg_finanztracker.domain.models import Item, Member, Payment, Receipt
 
 
 def get_connection() -> Connection:
@@ -329,3 +329,68 @@ def delete_receipt(receipt_id: int) -> None:
 
         if cursor.rowcount == 0:
             raise ValueError("Receipt not found")
+
+
+def get_payments() -> list[Payment]:
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT
+                from_member,
+                to_member,
+                amount_cents,
+                payment_date
+            FROM payments
+            ORDER BY payment_date
+            """)
+        rows = cursor.fetchall()
+
+    payments: list[Payment] = []
+
+    for row in rows:
+        from_member = get_member(row[0])
+        to_member = get_member(row[1])
+
+        if from_member is None or to_member is None:
+            raise RuntimeError("Payment references an unknown member")
+
+        payments.append(
+            Payment(
+                from_member=from_member,
+                to_member=to_member,
+                amount_cents=row[2],
+                payment_date=row[3],
+            )
+        )
+
+    return payments
+
+
+def add_payment(payment: Payment) -> int:
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO payments (
+                from_member,
+                to_member,
+                amount_cents,
+                payment_date
+            )
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                payment.from_member.id,
+                payment.to_member.id,
+                payment.amount_cents,
+                payment.payment_date,
+            ),
+        )
+
+        row = cursor.fetchone()
+
+        if row is None:
+            raise RuntimeError(
+                "Failed to insert payment: database did not return an id"
+            )
+
+    return row[0]

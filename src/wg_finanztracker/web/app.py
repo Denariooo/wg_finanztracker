@@ -10,15 +10,17 @@ from wg_finanztracker.domain.cost_sharing import (
     calculate_shares,
     calculate_total_debts,
 )
-from wg_finanztracker.domain.models import Item, Receipt
+from wg_finanztracker.domain.models import Item, Payment, Receipt
 from wg_finanztracker.ocr.service import ReceiptOcrService
 from wg_finanztracker.ocr.tesseract_service import TesseractOcrService
 from wg_finanztracker.persistence.database import (
+    add_payment,
     add_receipt,
     delete_member,
     delete_receipt,
     get_member,
     get_members,
+    get_payments,
     get_receipt,
     get_receipts,
 )
@@ -43,16 +45,14 @@ def index():
 
     purchases = [receipt for _, receipt in receipt_entries]
 
-    total_debts = calculate_total_debts(purchases)
+    payments = get_payments()
 
-    members_by_id = {}
+    total_debts = calculate_total_debts(
+        purchases,
+        payments,
+    )
 
-    for receipt in purchases:
-        members_by_id[receipt.paid_by.id] = receipt.paid_by
-
-        for item in receipt.items:
-            for member in item.assigned_to:
-                members_by_id[member.id] = member
+    members_by_id = {member.id: member for member in get_members()}
 
     recent_receipts = sorted(
         receipt_entries,
@@ -335,6 +335,68 @@ def parse_price_cents(value: str) -> int:
         raise ValueError("Ein Preis darf höchstens zwei Nachkommastellen haben.")
 
     return int(amount * 100)
+
+
+@app.post("/payments/create")
+def create_payment():
+    debtor_value = request.form.get(
+        "debtor_id",
+        "",
+    )
+
+    creditor_value = request.form.get(
+        "creditor_id",
+        "",
+    )
+
+    try:
+        debtor_id = int(debtor_value)
+        creditor_id = int(creditor_value)
+    except ValueError:
+        abort(400)
+
+    debtor = get_member(debtor_id)
+    creditor = get_member(creditor_id)
+
+    if debtor is None or creditor is None:
+        abort(404)
+
+    if debtor.id == creditor.id:
+        abort(400)
+
+    receipt_entries = get_receipts()
+
+    purchases = [receipt for _, receipt in receipt_entries]
+
+    current_debts = calculate_total_debts(
+        purchases,
+        get_payments(),
+    )
+
+    amount_cents = None
+
+    for (
+        current_debtor_id,
+        current_creditor_id,
+        current_amount,
+    ) in current_debts:
+        if current_debtor_id == debtor_id and current_creditor_id == creditor_id:
+            amount_cents = current_amount
+            break
+
+    if amount_cents is None:
+        abort(400)
+
+    payment = Payment(
+        from_member=debtor,
+        to_member=creditor,
+        amount_cents=amount_cents,
+        payment_date=date.today(),
+    )
+
+    add_payment(payment)
+
+    return redirect("/index")
 
 
 if __name__ == "__main__":

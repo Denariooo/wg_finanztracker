@@ -1,4 +1,4 @@
-from wg_finanztracker.domain.models import Receipt
+from wg_finanztracker.domain.models import Payment, Receipt
 
 
 def calculate_shares(purchase: Receipt) -> dict[int, int]:
@@ -41,6 +41,7 @@ def calculate_debts(purchase: Receipt) -> dict[int, int]:
 
 def calculate_total_debts(
     purchases: list[Receipt],
+    payments: list[Payment] | None = None,
 ) -> list[tuple[int, int, int]]:
     """
     Calculate and simplify debts across multiple purchases.
@@ -53,19 +54,29 @@ def calculate_total_debts(
         debts = calculate_debts(purchase)
         payer_id = purchase.paid_by.id
 
-        balances.setdefault(
-            payer_id,
-            0,
-        )
+        if payer_id not in balances:
+            balances[payer_id] = 0
 
         for debtor_id, amount in debts.items():
-            balances.setdefault(
-                debtor_id,
-                0,
-            )
+            if debtor_id not in balances:
+                balances[debtor_id] = 0
 
             balances[debtor_id] -= amount
             balances[payer_id] += amount
+
+    if payments is not None:
+        for payment in payments:
+            from_id = payment.from_member.id
+            to_id = payment.to_member.id
+
+            if from_id not in balances:
+                balances[from_id] = 0
+
+            if to_id not in balances:
+                balances[to_id] = 0
+
+            balances[from_id] += payment.amount_cents
+            balances[to_id] -= payment.amount_cents
 
     return _simplify_balances(balances)
 
