@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import psycopg
 from psycopg import Connection
 
@@ -239,19 +241,87 @@ def get_receipt(receipt_id: int) -> Receipt | None:
 
 
 def get_receipts() -> list[tuple[int, Receipt]]:
+    query = """
+            SELECT
+                r.id AS receipt_id, r.store, r.purchase_date, r.price_cents AS receipt_price,
+                rm.id AS payer_id, rm.name AS payer_name,
+                i.id AS item_id, i.name AS item_name, i.price_cents AS item_price,
+                am.id AS assignee_id, am.name AS assignee_name
+            FROM receipts r
+                     JOIN members rm ON r.paid_by = rm.id
+                     LEFT JOIN items i ON r.id = i.receipt_id
+                     LEFT JOIN item_assignments ia ON i.id = ia.item_id
+                     LEFT JOIN members am ON ia.member_id = am.id
+            ORDER BY r.purchase_date DESC, r.id, i.id; \
+            """
+
     with get_connection() as conn, conn.cursor() as cursor:
-        cursor.execute("SELECT id FROM receipts")
+        cursor.execute(query)
         rows = cursor.fetchall()
 
-    receipts = []
+    receipts_dict = {}
+    items_dict = {}
+
     for row in rows:
-        receipt_id = row[0]
-        receipt = get_receipt(receipt_id)
+        (
+            receipt_id,
+            store,
+            purchase_date,
+            receipt_price,
+            payer_id,
+            payer_name,
+            item_id,
+            item_name,
+            item_price,
+            assignee_id,
+            assignee_name,
+        ) = row
 
-        if receipt is not None:
-            receipts.append((receipt_id, receipt))
+        if receipt_id not in receipts_dict:
+            payer = Member(id=payer_id, name=payer_name)
+            receipts_dict[receipt_id] = {
+                "store": store,
+                "purchase_date": purchase_date,
+                "price_cents": receipt_price,
+                "paid_by": payer,
+                "items": [],
+            }
 
-    return receipts
+        if item_id is not None:
+            if item_id not in items_dict:
+                items_dict[item_id] = {
+                    "receipt_id": receipt_id,
+                    "name": item_name,
+                    "price_cents": item_price,
+                    "assigned_to": [],
+                }
+
+            if assignee_id is not None:
+                items_dict[item_id]["assigned_to"].append(
+                    Member(id=assignee_id, name=assignee_name)
+                )
+
+    items_by_receipt = defaultdict(list)
+    for item_id, item_data in items_dict.items():
+        item_obj = Item(
+            name=item_data["name"],
+            price_cents=item_data["price_cents"],
+            assigned_to=item_data["assigned_to"],
+        )
+        items_by_receipt[item_data["receipt_id"]].append(item_obj)
+
+    final_receipts = []
+    for receipt_id, r_data in receipts_dict.items():
+        receipt = Receipt(
+            store=r_data["store"],
+            purchase_date=r_data["purchase_date"],
+            price_cents=r_data["price_cents"],
+            paid_by=r_data["paid_by"],
+            items=items_by_receipt.get(receipt_id, []),
+        )
+        final_receipts.append((receipt_id, receipt))
+
+    return final_receipts
 
 
 def add_receipt(receipt: Receipt) -> int:
@@ -332,33 +402,37 @@ def delete_receipt(receipt_id: int) -> None:
 
 
 def get_payments() -> list[Payment]:
-    with get_connection() as conn, conn.cursor() as cursor:
-        cursor.execute("""
+    query = """
             SELECT
-                from_member,
-                to_member,
-                amount_cents,
-                payment_date
-            FROM payments
-            ORDER BY payment_date
-            """)
+                p.amount_cents,
+                p.payment_date,
+                fm.id AS from_id,
+                fm.name AS from_name,
+                tm.id AS to_id,
+                tm.name AS to_name
+            FROM payments p
+                     JOIN members fm ON p.from_member = fm.id
+                     JOIN members tm ON p.to_member = tm.id
+            ORDER BY p.payment_date \
+            """
+
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute(query)
         rows = cursor.fetchall()
 
     payments: list[Payment] = []
 
     for row in rows:
-        from_member = get_member(row[0])
-        to_member = get_member(row[1])
-
-        if from_member is None or to_member is None:
-            raise RuntimeError("Payment references an unknown member")
+        amount_cents, payment_date, from_id, from_name, to_id, to_name = row
+        from_member = Member(id=from_id, name=from_name)
+        to_member = Member(id=to_id, name=to_name)
 
         payments.append(
             Payment(
                 from_member=from_member,
                 to_member=to_member,
-                amount_cents=row[2],
-                payment_date=row[3],
+                amount_cents=amount_cents,
+                payment_date=payment_date,
             )
         )
 
