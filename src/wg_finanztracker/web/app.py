@@ -11,6 +11,12 @@ from wg_finanztracker.domain.cost_sharing import (
     calculate_total_debts,
 )
 from wg_finanztracker.domain.models import Item, Payment, Receipt
+from wg_finanztracker.domain.statistics import (
+    calculate_category_totals,
+    calculate_member_spending_totals,
+    calculate_monthly_totals,
+    calculate_yearly_totals,
+)
 from wg_finanztracker.ocr.service import ReceiptOcrService
 from wg_finanztracker.ocr.tesseract_service import TesseractOcrService
 from wg_finanztracker.persistence.database import (
@@ -131,6 +137,52 @@ def receipt_detail(receipt_id: int):
         shares=shares,
         debts=debts,
         members_by_id=members_by_id,
+    )
+
+
+@app.route("/statistics")
+def statistics():
+    receipt_entries = get_receipts()
+    receipts = [receipt for _, receipt in receipt_entries]
+    members_by_id = {member.id: member for member in get_members()}
+
+    category_totals = calculate_category_totals(receipts)
+    member_totals = calculate_member_spending_totals(receipts)
+    monthly_totals = calculate_monthly_totals(receipts)
+    yearly_totals = calculate_yearly_totals(receipts)
+
+    category_rows = _build_chart_rows(category_totals)
+
+    member_rows = _build_chart_rows(
+        {
+            (
+                members_by_id[member_id].name
+                if member_id in members_by_id
+                else f"Mitglied {member_id}"
+            ): amount
+            for member_id, amount in member_totals.items()
+        }
+    )
+
+    monthly_rows = [
+        {
+            "label": f"{month:02}.{year}",
+            "amount_cents": amount_cents,
+            "year": year,
+            "month": month,
+        }
+        for year, month, amount_cents in monthly_totals
+    ]
+
+    trend_points = _build_trend_points([row["amount_cents"] for row in monthly_rows])
+
+    return render_template(
+        "statistics.html",
+        category_rows=category_rows,
+        member_rows=member_rows,
+        monthly_rows=monthly_rows,
+        yearly_totals=yearly_totals,
+        trend_points=trend_points,
     )
 
 
@@ -363,6 +415,57 @@ def parse_price_cents(value: str) -> int:
         raise ValueError("Ein Preis darf höchstens zwei Nachkommastellen haben.")
 
     return int(amount * 100)
+
+
+def _build_chart_rows(values: dict[str, int]) -> list[dict[str, float | int | str]]:
+    if not values:
+        return []
+
+    maximum = max(values.values())
+
+    if maximum <= 0:
+        return [
+            {
+                "label": label,
+                "amount_cents": amount_cents,
+                "width_percent": 0.0,
+            }
+            for label, amount_cents in values.items()
+        ]
+
+    return [
+        {
+            "label": label,
+            "amount_cents": amount_cents,
+            "width_percent": (amount_cents / maximum) * 100,
+        }
+        for label, amount_cents in values.items()
+    ]
+
+
+def _build_trend_points(values: list[int]) -> str:
+    if not values:
+        return ""
+
+    if len(values) == 1:
+        return "50,10 50,90"
+
+    max_value = max(values)
+
+    if max_value <= 0:
+        return " ".join(
+            f"{(index / (len(values) - 1)) * 100:.2f},90.00"
+            for index in range(len(values))
+        )
+
+    points: list[str] = []
+
+    for index, amount in enumerate(values):
+        x = (index / (len(values) - 1)) * 100
+        y = 90 - ((amount / max_value) * 80)
+        points.append(f"{x:.2f},{y:.2f}")
+
+    return " ".join(points)
 
 
 @app.post("/payments/create")

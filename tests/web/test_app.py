@@ -537,3 +537,47 @@ def test_upload_receipt_shows_ocr_error(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert b"OCR fehlgeschlagen" in response.data
+
+
+def test_statistics_page_renders_aggregations(monkeypatch) -> None:
+    deniz = Member(id=1, name="Deniz")
+    max_member = Member(id=2, name="Max")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 24),
+        price_cents=400,
+        paid_by=deniz,
+        items=[
+            Item(
+                name="Milch",
+                price_cents=200,
+                assigned_to=[deniz],
+            ),
+            Item(
+                name="Spülmittel",
+                price_cents=200,
+                assigned_to=[max_member],
+            ),
+        ],
+    )
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipts",
+        lambda: [(1, receipt)],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [deniz, max_member],
+    )
+
+    client = app.test_client()
+    response = client.get("/statistics")
+
+    assert response.status_code == 200
+    assert b"Diagramm pro Kategorie" in response.data
+    assert b"Ausgaben pro Person" in response.data
+    assert b"Monats" in response.data
+    assert b"Jahres" in response.data
+    assert b"Lebensmittel" in response.data
+    assert b"Haushalt" in response.data
