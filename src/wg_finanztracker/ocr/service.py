@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Protocol
 
-from wg_finanztracker.ocr.models import OcrReceipt
+from wg_finanztracker.ocr.ocr_models import OcrReceipt
 
 
 class ReceiptOcrService(Protocol):

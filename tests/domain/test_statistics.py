@@ -1,7 +1,7 @@
 from datetime import date
 
 from wg_finanztracker.domain.models import Item, Member, Receipt
-from wg_finanztracker.domain.statistics import (
+from wg_finanztracker.domain.stats import (
     calculate_category_totals,
     calculate_member_spending_totals,
     calculate_monthly_totals,

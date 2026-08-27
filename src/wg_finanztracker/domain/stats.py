@@ -113,8 +113,7 @@ def calculate_monthly_totals(
         totals[key] += receipt.price_cents
 
     result = [
-        (year, month, amount_cents)
-        for (year, month), amount_cents in totals.items()
+        (year, month, amount_cents) for (year, month), amount_cents in totals.items()
     ]
 
     result.sort(

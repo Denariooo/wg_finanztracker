@@ -1,5 +1,5 @@
 import tempfile
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -11,7 +11,7 @@ from wg_finanztracker.domain.cost_sharing import (
     calculate_total_debts,
 )
 from wg_finanztracker.domain.models import Item, Payment, Receipt
-from wg_finanztracker.domain.statistics import (
+from wg_finanztracker.domain.stats import (
     calculate_category_totals,
     calculate_member_spending_totals,
     calculate_monthly_totals,
@@ -522,7 +522,7 @@ def create_payment():
         from_member=debtor,
         to_member=creditor,
         amount_cents=amount_cents,
-        payment_date=date.today(),
+        payment_date=datetime.now(tz=UTC).date(),
     )
 
     add_payment(payment)

@@ -3,7 +3,7 @@ import json
 import sys
 from pathlib import Path
 
-from wg_finanztracker.ocr.models import OcrReceipt
+from wg_finanztracker.ocr.ocr_models import OcrReceipt
 from wg_finanztracker.ocr.tesseract_service import TesseractOcrService
 
 

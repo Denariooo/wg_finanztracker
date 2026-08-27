@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from wg_finanztracker.ocr.models import (
+from wg_finanztracker.ocr.ocr_models import (
     OcrReceipt,
     OcrTextLine,
 )

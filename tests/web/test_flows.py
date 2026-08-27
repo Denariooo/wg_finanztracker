@@ -2,7 +2,7 @@ from datetime import date
 from io import BytesIO
 
 from wg_finanztracker.domain.models import Item, Member, Payment, Receipt
-from wg_finanztracker.ocr.models import OcrItem, OcrReceipt
+from wg_finanztracker.ocr.ocr_models import OcrItem, OcrReceipt
 from wg_finanztracker.web.app import app
 
 

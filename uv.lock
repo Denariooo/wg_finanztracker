@@ -823,6 +823,7 @@ source = { editable = "." }
 dependencies = [
     { name = "black" },
     { name = "flask" },
+    { name = "numpy" },
     { name = "opencv-python" },
     { name = "pillow" },
     { name = "psycopg", extra = ["binary"] },
@@ -843,6 +844,7 @@ dev = [
 requires-dist = [
     { name = "black", specifier = ">=26.5.1" },
     { name = "flask", specifier = ">=3.1.3" },
+    { name = "numpy", specifier = ">=2.5.2" },
     { name = "opencv-python", specifier = ">=5.0.0.93" },
     { name = "pillow", specifier = ">=12.3.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },

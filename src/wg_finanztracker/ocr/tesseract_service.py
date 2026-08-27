@@ -1,5 +1,6 @@
 import re
 from dataclasses import replace
+from datetime import date
 from difflib import SequenceMatcher
 from pathlib import Path
 from statistics import mean
@@ -10,7 +11,7 @@ import numpy as np
 import pytesseract
 from pytesseract import Output
 
-from wg_finanztracker.ocr.models import (
+from wg_finanztracker.ocr.ocr_models import (
     OcrItem,
     OcrReceipt,
     OcrTextLine,
@@ -206,7 +207,14 @@ class TesseractOcrService:
             result.price_cents / 100 if result.price_cents is not None else None,
         )
         print("Artikel:", len(result.items))
-        print("Ergebnisqualität:", f"{result.confidence * 100:.1f} %")
+        print(
+            "Ergebnisqualität:",
+            (
+                f"{result.confidence * 100:.1f} %"
+                if result.confidence is not None
+                else None
+            ),
+        )
 
 
 def _combine_candidates(
@@ -220,6 +228,7 @@ def _combine_candidates(
         value_getter=(lambda candidate: candidate.receipt.purchase_date),
     )
 
+    purchase_date: date | None
     if (
         best_overall.receipt.purchase_date is not None
         and "datum" in best_overall.receipt.raw_text.casefold()
@@ -424,9 +433,7 @@ def _get_ocr_language() -> str:
         return "eng"
 
     raise RuntimeError(
-        "Weder das deutsche noch das "
-        "englische Tesseract-Sprachmodell "
-        "ist installiert."
+        "Weder das deutsche noch das englische Tesseract-Sprachmodell ist installiert."
     )
 
 
@@ -438,7 +445,7 @@ def _recognize_lines(
     data = pytesseract.image_to_data(
         image,
         lang=language,
-        config=(f"--oem 3 --psm {psm} " "-c preserve_interword_spaces=1"),
+        config=(f"--oem 3 --psm {psm} -c preserve_interword_spaces=1"),
         output_type=Output.DICT,
     )
 

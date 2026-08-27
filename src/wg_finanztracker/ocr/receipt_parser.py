@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from statistics import median
 
-from wg_finanztracker.ocr.models import (
+from wg_finanztracker.ocr.ocr_models import (
     OcrItem,
     OcrReceipt,
     OcrTextLine,
@@ -1016,7 +1016,7 @@ def _item_text_from_total_row(
         ):
             return None
 
-        item_text = f"{previous_text} " f"{price_match.group(0)}"
+        item_text = f"{previous_text} {price_match.group(0)}"
 
     return item_text
 
@@ -1272,7 +1272,7 @@ def _to_cents(
     decimal_part: str,
 ) -> int | None:
     try:
-        amount = Decimal(f"{integer_part}." f"{decimal_part}")
+        amount = Decimal(f"{integer_part}.{decimal_part}")
     except InvalidOperation:
         return None
 
