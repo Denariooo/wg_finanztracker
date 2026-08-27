@@ -18,9 +18,18 @@ def get_connection() -> Connection:
 
 
 def get_members() -> list[Member]:
-    """Return all active member"""
+    """Return all active members"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute("SELECT id, name FROM members WHERE active = true")
+        rows = cursor.fetchall()
+
+    return [Member(id=row[0], name=row[1]) for row in rows]
+
+
+def get_all_members() -> list[Member]:
+    """Return all members, including inactive members."""
+    with get_connection() as conn, conn.cursor() as cursor:
+        cursor.execute("SELECT id, name FROM members")
         rows = cursor.fetchall()
 
     return [Member(id=row[0], name=row[1]) for row in rows]

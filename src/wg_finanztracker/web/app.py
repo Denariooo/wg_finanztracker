@@ -24,6 +24,7 @@ from wg_finanztracker.persistence.database import (
     add_receipt,
     delete_member,
     delete_receipt,
+    get_all_members,
     get_member,
     get_members,
     get_payments,
@@ -71,7 +72,7 @@ def index():
         payments,
     )
 
-    members_by_id = {member.id: member for member in get_members()}
+    members_by_id = {member.id: member for member in get_all_members()}
 
     recent_receipts = sorted(
         receipt_entries,
