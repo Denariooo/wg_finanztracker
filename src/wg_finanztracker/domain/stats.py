@@ -51,6 +51,7 @@ _CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
 
 
 def categorize_item_name(name: str) -> str:
+    """Categorize an item based on keywords in its name"""
     normalized = name.casefold()
 
     for category, keywords in _CATEGORY_KEYWORDS.items():
@@ -64,6 +65,7 @@ def categorize_item_name(name: str) -> str:
 def calculate_category_totals(
     receipts: list[Receipt],
 ) -> dict[str, int]:
+    """Calculate the total amount spent in each category"""
     totals: dict[str, int] = defaultdict(int)
 
     for receipt in receipts:
@@ -83,6 +85,7 @@ def calculate_category_totals(
 def calculate_member_spending_totals(
     receipts: list[Receipt],
 ) -> dict[int, int]:
+    """Calculate the total amount assigned to each member"""
     totals: dict[int, int] = defaultdict(int)
 
     for receipt in receipts:
@@ -103,6 +106,7 @@ def calculate_member_spending_totals(
 def calculate_monthly_totals(
     receipts: list[Receipt],
 ) -> list[tuple[int, int, int]]:
+    """Calculate the total amount spent in each month"""
     totals: dict[tuple[int, int], int] = defaultdict(int)
 
     for receipt in receipts:
@@ -129,6 +133,7 @@ def calculate_monthly_totals(
 def calculate_yearly_totals(
     receipts: list[Receipt],
 ) -> list[tuple[int, int]]:
+    """Calculate total spending grouped by year"""
     totals: dict[int, int] = defaultdict(int)
 
     for receipt in receipts:

@@ -7,6 +7,7 @@ from wg_finanztracker.domain.models import Item, Member, Payment, Receipt
 
 
 def get_connection() -> Connection:
+    """Creates and returns a connection to the database"""
     return psycopg.connect(
         host="localhost",
         port=5432,
@@ -17,6 +18,7 @@ def get_connection() -> Connection:
 
 
 def get_members() -> list[Member]:
+    """Return all active member"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute("SELECT id, name FROM members WHERE active = true")
         rows = cursor.fetchall()
@@ -25,6 +27,7 @@ def get_members() -> list[Member]:
 
 
 def get_member(member_id: int) -> Member | None:
+    """Return a member by id or None if not found"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             "SELECT id, name FROM members WHERE id = %s",
@@ -39,6 +42,7 @@ def get_member(member_id: int) -> Member | None:
 
 
 def add_member(name: str) -> Member:
+    """Add and return a new member"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             "INSERT INTO members (name) VALUES (%s) RETURNING id",
@@ -53,6 +57,7 @@ def add_member(name: str) -> Member:
 
 
 def update_member(member: Member) -> None:
+    """Update the name of a member"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             "UPDATE members SET name = %s WHERE id = %s",
@@ -64,6 +69,7 @@ def update_member(member: Member) -> None:
 
 
 def delete_member(member_id: int) -> None:
+    """Delete a member by id"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             "UPDATE members SET active = false WHERE id = %s",
@@ -75,6 +81,7 @@ def delete_member(member_id: int) -> None:
 
 
 def get_item_members(item_id: int) -> list[Member]:
+    """Return all members assigned to an item"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -90,6 +97,7 @@ def get_item_members(item_id: int) -> list[Member]:
 
 
 def get_items(receipt_id: int) -> list[Item]:
+    """Return all items for a receipt"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -115,6 +123,7 @@ def get_items(receipt_id: int) -> list[Item]:
 
 
 def add_item(receipt_id: int, item: Item) -> int:
+    """Add an item to a receipt and assign members to it"""
     with get_connection() as conn, conn.cursor() as cursor:
         item_id = _add_item(cursor, receipt_id, item)
 
@@ -147,6 +156,7 @@ def _add_item(
 
 
 def update_item(item_id: int, item: Item) -> None:
+    """Update an item and replace its assigned members"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -170,6 +180,7 @@ def update_item(item_id: int, item: Item) -> None:
 
 
 def delete_item(item_id: int) -> None:
+    """Delete an item by id"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             "DELETE FROM items WHERE id = %s",
@@ -181,6 +192,7 @@ def delete_item(item_id: int) -> None:
 
 
 def assign_member_to_item(item_id: int, member_id: int) -> None:
+    """Assign a member to an item"""
     with get_connection() as conn, conn.cursor() as cursor:
         _assign_member_to_item(cursor, item_id, member_id)
 
@@ -200,6 +212,7 @@ def _assign_member_to_item(
 
 
 def remove_member_from_item(item_id: int, member_id: int) -> None:
+    """Remove a member from an item"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -213,6 +226,7 @@ def remove_member_from_item(item_id: int, member_id: int) -> None:
 
 
 def get_receipt(receipt_id: int) -> Receipt | None:
+    """Return a receipt by id or None if not found"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -241,6 +255,7 @@ def get_receipt(receipt_id: int) -> Receipt | None:
 
 
 def get_receipts() -> list[tuple[int, Receipt]]:
+    """Return all receipts with their items and assigned members"""
     query = """
             SELECT
                 r.id AS receipt_id, r.store, r.purchase_date, r.price_cents AS receipt_price,
@@ -325,6 +340,7 @@ def get_receipts() -> list[tuple[int, Receipt]]:
 
 
 def add_receipt(receipt: Receipt) -> int:
+    """Add a receipt and its items to the database"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -367,6 +383,7 @@ def add_receipt(receipt: Receipt) -> int:
 
 
 def update_receipt(receipt_id: int, receipt: Receipt) -> None:
+    """Update an existing receipt"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
@@ -391,6 +408,7 @@ def update_receipt(receipt_id: int, receipt: Receipt) -> None:
 
 
 def delete_receipt(receipt_id: int) -> None:
+    """Delete a receipt by id"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             "DELETE FROM receipts WHERE id = %s",
@@ -402,6 +420,7 @@ def delete_receipt(receipt_id: int) -> None:
 
 
 def get_payments() -> list[Payment]:
+    """Return all recorded payments"""
     query = """
             SELECT
                 p.amount_cents,
@@ -440,6 +459,7 @@ def get_payments() -> list[Payment]:
 
 
 def add_payment(payment: Payment) -> int:
+    """Add a payment and return its id"""
     with get_connection() as conn, conn.cursor() as cursor:
         cursor.execute(
             """

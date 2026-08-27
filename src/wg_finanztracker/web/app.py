@@ -46,6 +46,7 @@ ocr_service: ReceiptOcrService = TesseractOcrService()
 
 @app.errorhandler(404)
 def page_not_found(error):
+    """Render the 404 page with the error message"""
     return (
         render_template(
             "404.html",
@@ -58,6 +59,7 @@ def page_not_found(error):
 @app.route("/")
 @app.route("/index")
 def index():
+    """Render the dashboard with current debts and recent receipts"""
     receipt_entries = get_receipts()
 
     purchases = [receipt for _, receipt in receipt_entries]
@@ -87,16 +89,19 @@ def index():
 
 @app.route("/members")
 def members():
+    """Render the member management page"""
     return render_template("members.html", members=get_members())
 
 
 @app.route("/receipts")
 def receipts():
+    """Render the list of all receipts"""
     return render_template("receipts.html", receipts=get_receipts())
 
 
 @app.route("/receipts/<int:receipt_id>")
 def receipt_detail(receipt_id: int):
+    """Render the detail page for a specific receipt with its costs and debts"""
     receipt = get_receipt(receipt_id)
 
     if receipt is None:
@@ -142,6 +147,7 @@ def receipt_detail(receipt_id: int):
 
 @app.route("/statistics")
 def statistics():
+    """Calculate and render spending statistics"""
     receipt_entries = get_receipts()
     receipts = [receipt for _, receipt in receipt_entries]
     members_by_id = {member.id: member for member in get_members()}
@@ -188,6 +194,7 @@ def statistics():
 
 @app.post("/members/<int:member_id>/delete")
 def delete_member_route(member_id: int):
+    """Delete a member"""
     if get_member(member_id) is None:
         abort(404)
 
@@ -198,6 +205,7 @@ def delete_member_route(member_id: int):
 
 @app.post("/receipts/<int:receipt_id>/delete")
 def delete_receipt_route(receipt_id: int):
+    """Delete a receipt"""
     if get_receipt(receipt_id) is None:
         abort(404)
 
@@ -211,6 +219,7 @@ def delete_receipt_route(receipt_id: int):
     methods=["GET", "POST"],
 )
 def upload_receipt():
+    """Handle receipt upload and OCR processing"""
     if request.method == "GET":
         return render_template("receipt_upload.html", members=get_members())
 
@@ -267,6 +276,7 @@ def upload_receipt():
 
 @app.post("/receipts/create")
 def create_receipt():
+    """Validate and store a new receipt based on form data"""
     members = get_members()
 
     members_by_id = {member.id: member for member in members}
@@ -399,6 +409,7 @@ def create_receipt():
 
 
 def parse_price_cents(value: str) -> int:
+    """Parse a decimal price and return it to cents"""
     normalized = value.strip().replace(",", ".")
 
     try:
@@ -470,6 +481,7 @@ def _build_trend_points(values: list[int]) -> str:
 
 @app.post("/payments/create")
 def create_payment():
+    """Create a payment for an outstanding debt"""
     debtor_value = request.form.get(
         "debtor_id",
         "",
