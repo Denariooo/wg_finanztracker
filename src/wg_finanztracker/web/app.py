@@ -10,7 +10,7 @@ from wg_finanztracker.domain.cost_sharing import (
     calculate_shares,
     calculate_total_debts,
 )
-from wg_finanztracker.domain.models import Item, Payment, Receipt
+from wg_finanztracker.domain.models import Item, Member, Payment, Receipt
 from wg_finanztracker.domain.stats import (
     calculate_category_totals,
     calculate_member_spending_totals,
@@ -20,6 +20,7 @@ from wg_finanztracker.domain.stats import (
 from wg_finanztracker.ocr.service import ReceiptOcrService
 from wg_finanztracker.ocr.tesseract_service import TesseractOcrService
 from wg_finanztracker.persistence.database import (
+    add_member,
     add_payment,
     add_receipt,
     delete_member,
@@ -30,6 +31,7 @@ from wg_finanztracker.persistence.database import (
     get_payments,
     get_receipt,
     get_receipts,
+    update_member,
 )
 
 app = Flask(
@@ -92,6 +94,67 @@ def index():
 def members():
     """Render the member management page"""
     return render_template("members.html", members=get_members())
+
+
+@app.post("/members/create")
+def create_member():
+    """Create a new member"""
+    name = request.form.get("name", "").strip()
+
+    if not name:
+        return render_template(
+            "members.html",
+            members=get_members(),
+            error="Bitte einen Namen angeben.",
+        )
+
+    add_member(name)
+
+    return redirect("/members")
+
+
+@app.route("/members/<int:member_id>/edit", methods=["GET", "POST"])
+def edit_member(member_id: int):
+    """Display and update a member"""
+    member = get_member(member_id)
+
+    if member is None:
+        abort(404)
+
+    if request.method == "GET":
+        return render_template(
+            "member_edit.html",
+            member=member,
+        )
+
+    name = request.form.get("name", "").strip()
+
+    if not name:
+        return render_template(
+            "member_edit.html",
+            member=member,
+            error="Bitte einen Namen angeben.",
+        )
+
+    updated_member = Member(
+        id=member.id,
+        name=name,
+    )
+
+    update_member(updated_member)
+
+    return redirect("/members")
+
+
+@app.post("/members/<int:member_id>/delete")
+def delete_member_route(member_id: int):
+    """Delete a member"""
+    if get_member(member_id) is None:
+        abort(404)
+
+    delete_member(member_id)
+
+    return redirect("/members")
 
 
 @app.route("/receipts")
@@ -191,17 +254,6 @@ def statistics():
         yearly_totals=yearly_totals,
         trend_points=trend_points,
     )
-
-
-@app.post("/members/<int:member_id>/delete")
-def delete_member_route(member_id: int):
-    """Delete a member"""
-    if get_member(member_id) is None:
-        abort(404)
-
-    delete_member(member_id)
-
-    return redirect("/members")
 
 
 @app.post("/receipts/<int:receipt_id>/delete")

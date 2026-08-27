@@ -307,6 +307,160 @@ def test_delete_member_route(monkeypatch) -> None:
     assert deleted_member_ids == [42]
 
 
+def test_create_member(monkeypatch) -> None:
+    added_names = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.add_member",
+        lambda name: added_names.append(name),
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        list,
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/members/create",
+        data={"name": "Max"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/members"
+    assert added_names == ["Max"]
+
+
+def test_create_member_rejects_empty_name(monkeypatch) -> None:
+    added_names = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.add_member",
+        lambda name: added_names.append(name),
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        list,
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/members/create",
+        data={"name": "           "},
+    )
+
+    assert response.status_code == 200
+    assert b"Bitte einen Namen angeben." in response.data
+    assert added_names == []
+
+
+def test_create_member_strips_whitespace(monkeypatch) -> None:
+    added_names = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.add_member",
+        lambda name: added_names.append(name),
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        list,
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/members/create",
+        data={"name": "  Max  "},
+    )
+
+    assert response.status_code == 302
+    assert added_names == ["Max"]
+
+
+def test_edit_member_page(monkeypatch) -> None:
+    member = Member(id=42, name="Max")
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: member,
+    )
+
+    client = app.test_client()
+    response = client.get("/members/42/edit")
+
+    assert response.status_code == 200
+    assert b"Max" in response.data
+
+
+def test_edit_member(monkeypatch) -> None:
+    member = Member(id=42, name="Max")
+    updated_members = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: member,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_member",
+        lambda updated_member: updated_members.append(updated_member),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/members/42/edit",
+        data={"name": "Maximilian"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/members"
+
+    assert updated_members == [
+        Member(id=42, name="Maximilian"),
+    ]
+
+
+def test_edit_member_rejects_empty_name(monkeypatch) -> None:
+    member = Member(id=42, name="Max")
+    updated_members = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: member,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_member",
+        lambda updated_member: updated_members.append(updated_member),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/members/42/edit",
+        data={"name": "   "},
+    )
+
+    assert response.status_code == 200
+    assert b"Bitte einen Namen angeben." in response.data
+    assert updated_members == []
+
+
+def test_edit_unknown_member_returns_404(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_member",
+        lambda member_id: None,
+    )
+
+    client = app.test_client()
+    response = client.get("/members/9999999999/edit")
+
+    assert response.status_code == 404
+
+
+def test_create_member_rejects_get() -> None:
+    client = app.test_client()
+
+    response = client.get("/members/create")
+
+    assert response.status_code == 405
+
+
 def test_delete_receipt_route(monkeypatch) -> None:
     member = Member(id=1, name="Deniz")
 

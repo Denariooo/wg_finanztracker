@@ -13,9 +13,10 @@
             </div>
         </nav>
         <main class="container py-5">
-            <h1 class="mb-4">WG-Mitglieder</h1>
-            <h2 class="mb-3">Mitglied hinzufügen</h2>
-            <form>
+            <h1 class="mb-4">WG-Mitglieder</h1> {% if error %} <div class="alert alert-danger" role="alert">
+                {{ error }}
+            </div> {% endif %} <h2 class="mb-3">Mitglied hinzufügen</h2>
+            <form action="/members/create" method="post">
                 <div class="mb-3"><label for="name" class="form-label">Name</label><input type="text" id="name" name="name" class="form-control" placeholder="Name des Mitglieds" required></div><button type="submit" class="btn btn-primary">Hinzufügen</button>
             </form>
             <hr class="my-4">
@@ -29,7 +30,7 @@
                 </thead>
                 <tbody> {% for member in members %} <tr>
                         <td>{{ member.name }}</td>
-                        <td><button type="button" class="btn btn-warning btn-sm">Bearbeiten</button>
+                        <td><a href="/members/{{ member.id }}/edit" class="btn btn-warning btn-sm">Bearbeiten</a>
                             <form action="/members/{{ member.id }}/delete" method="post" class="d-inline"><button type="submit" class="btn btn-danger btn-sm">Löschen</button></form>
                         </td>
                     </tr> {% endfor %} </tbody>
