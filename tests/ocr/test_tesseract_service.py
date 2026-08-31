@@ -46,7 +46,7 @@ def make_candidate(
 
 
 def test_extract_words_filters_invalid_entries() -> None:
-    data = {
+    data: dict[str, list[Any]] = {
         "text": ["Milch", "", "Brot"],
         "conf": ["95", "-1", "80"],
         "left": [10, 20, 30],
