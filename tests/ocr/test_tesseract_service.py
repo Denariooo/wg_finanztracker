@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Any
 
 from wg_finanztracker.ocr.ocr_models import (
     OcrItem,
