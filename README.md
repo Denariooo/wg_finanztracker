@@ -4,8 +4,9 @@
 
 * Python 3.14+
 * Docker und Docker Compose
-* [Tesseract OCR](https://tesseract-ocr.github.io/tessdoc/)
+* Tesseract OCR
 
+Tesseract OCR muss vor dem Start der Anwendung separat installiert werden. Die benötigten Installationsdateien und Anleitungen sind auf der [Tesseract-Website](https://tesseract-ocr.github.io/tessdoc/Downloads.html) verfügbar.
 ## Installation
 
 Repository klonen und die Python-Abhängigkeiten installieren:
