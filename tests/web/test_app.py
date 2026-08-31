@@ -508,6 +508,398 @@ def test_delete_receipt_route_rejects_get() -> None:
     assert response.status_code == 405
 
 
+def test_edit_receipt_page(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member,
+        items=[
+            Item(
+                name="Pizza",
+                price_cents=799,
+                assigned_to=[member],
+            ),
+        ],
+    )
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member],
+    )
+
+    client = app.test_client()
+    response = client.get("/receipts/42/edit")
+
+    assert response.status_code == 200
+    assert b"REWE" in response.data
+    assert b"Pizza" in response.data
+    assert b"Deniz" in response.data
+    assert b"Kassenbon bearbeiten" in response.data
+
+
+def test_edit_receipt(monkeypatch) -> None:
+    member_1 = Member(id=1, name="Deniz")
+    member_2 = Member(id=2, name="Max")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member_1,
+        items=[
+            Item(
+                name="Pizza",
+                price_cents=799,
+                assigned_to=[member_1],
+            ),
+        ],
+    )
+
+    updated_receipts = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member_1, member_2],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_receipt",
+        lambda receipt_id, updated_receipt: updated_receipts.append(
+            (receipt_id, updated_receipt)
+        ),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/42/edit",
+        data={
+            "store": "Lidl",
+            "purchase_date": "2026-08-25",
+            "price": "14,98",
+            "paid_by": "2",
+            "item_index": ["0"],
+            "item_name_0": "Milch",
+            "item_price_0": "1,99",
+            "item_members_0": ["1", "2"],
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/receipts/42"
+
+    assert len(updated_receipts) == 1
+
+    receipt_id, updated_receipt = updated_receipts[0]
+
+    assert receipt_id == 42
+    assert updated_receipt.store == "Lidl"
+    assert updated_receipt.purchase_date == date(2026, 8, 25)
+    assert updated_receipt.price_cents == 1498
+    assert updated_receipt.paid_by == member_2
+
+    assert len(updated_receipt.items) == 1
+    assert updated_receipt.items[0].name == "Milch"
+    assert updated_receipt.items[0].price_cents == 199
+    assert updated_receipt.items[0].assigned_to == [member_1, member_2]
+
+
+def test_edit_receipt_rejects_empty_store(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member,
+        items=[],
+    )
+
+    updated_receipts = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_receipt",
+        lambda receipt_id, updated_receipt: updated_receipts.append(updated_receipt),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/42/edit",
+        data={
+            "store": "",
+            "purchase_date": "2026-08-21",
+            "price": "12,99",
+            "paid_by": "1",
+            "item_index": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Bitte einen H" in response.data
+    assert updated_receipts == []
+
+
+def test_edit_receipt_rejects_invalid_date(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member,
+        items=[],
+    )
+
+    updated_receipts = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_receipt",
+        lambda receipt_id, updated_receipt: updated_receipts.append(updated_receipt),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/42/edit",
+        data={
+            "store": "REWE",
+            "purchase_date": "kein-datum",
+            "price": "12,99",
+            "paid_by": "1",
+            "item_index": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Datum ist ung" in response.data
+    assert updated_receipts == []
+
+
+def test_edit_receipt_rejects_invalid_price(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member,
+        items=[],
+    )
+
+    updated_receipts = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_receipt",
+        lambda receipt_id, updated_receipt: updated_receipts.append(updated_receipt),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/42/edit",
+        data={
+            "store": "REWE",
+            "purchase_date": "2026-08-21",
+            "price": "abc",
+            "paid_by": "1",
+            "item_index": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Ung" in response.data
+    assert updated_receipts == []
+
+
+def test_edit_receipt_rejects_unknown_member(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member,
+        items=[],
+    )
+
+    updated_receipts = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_receipt",
+        lambda receipt_id, updated_receipt: updated_receipts.append(updated_receipt),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/42/edit",
+        data={
+            "store": "REWE",
+            "purchase_date": "2026-08-21",
+            "price": "12,99",
+            "paid_by": "999",
+            "item_index": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"existiert nicht" in response.data
+    assert updated_receipts == []
+
+
+def test_edit_receipt_rejects_empty_item_name(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member,
+        items=[
+            Item(
+                name="Pizza",
+                price_cents=799,
+                assigned_to=[member],
+            ),
+        ],
+    )
+
+    updated_receipts = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_receipt",
+        lambda receipt_id, updated_receipt: updated_receipts.append(updated_receipt),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/42/edit",
+        data={
+            "store": "REWE",
+            "purchase_date": "2026-08-21",
+            "price": "12,99",
+            "paid_by": "1",
+            "item_index": ["0"],
+            "item_name_0": "",
+            "item_price_0": "7,99",
+            "item_members_0": ["1"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"Jeder Artikel ben" in response.data
+    assert updated_receipts == []
+
+
+def test_edit_receipt_rejects_item_without_member(monkeypatch) -> None:
+    member = Member(id=1, name="Deniz")
+
+    receipt = Receipt(
+        store="REWE",
+        purchase_date=date(2026, 8, 21),
+        price_cents=1299,
+        paid_by=member,
+        items=[
+            Item(
+                name="Pizza",
+                price_cents=799,
+                assigned_to=[member],
+            ),
+        ],
+    )
+
+    updated_receipts = []
+
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: receipt,
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_members",
+        lambda: [member],
+    )
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.update_receipt",
+        lambda receipt_id, updated_receipt: updated_receipts.append(updated_receipt),
+    )
+
+    client = app.test_client()
+    response = client.post(
+        "/receipts/42/edit",
+        data={
+            "store": "REWE",
+            "purchase_date": "2026-08-21",
+            "price": "12,99",
+            "paid_by": "1",
+            "item_index": ["0"],
+            "item_name_0": "Pizza",
+            "item_price_0": "7,99",
+        },
+    )
+
+    assert response.status_code == 200
+    assert b"mindestens einem Mitglied" in response.data
+    assert updated_receipts == []
+
+
+def test_edit_unknown_receipt_returns_404(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wg_finanztracker.web.app.get_receipt",
+        lambda receipt_id: None,
+    )
+
+    client = app.test_client()
+    response = client.get("/receipts/9999999999/edit")
+
+    assert response.status_code == 404
+
+
 def test_delete_unknown_member_returns_404(monkeypatch) -> None:
     monkeypatch.setattr(
         "wg_finanztracker.web.app.get_member",

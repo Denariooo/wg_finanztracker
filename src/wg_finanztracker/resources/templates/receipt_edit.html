@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>WG Finanztracker - Kassenbon bearbeiten</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    </head>
+    <body class="bg-light">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary">
+            <div class="container"><a class="navbar-brand" href="/index">WG Finanztracker</a>
+                <div class="navbar-nav"><a class="nav-link" href="/index">Start</a><a class="nav-link" href="/members">Mitglieder</a><a class="nav-link active" href="/receipts">Kassenbons</a><a class="nav-link" href="/statistics">Statistiken</a></div>
+            </div>
+        </nav>
+        <main class="container py-5">
+            <h1 class="mb-4">Kassenbon bearbeiten</h1> {% if error %} <div class="alert alert-danger" role="alert">
+                {{ error }}
+            </div> {% endif %} <form action="/receipts/{{ receipt_id }}/edit" method="post">
+                <h2 class="mb-3">Kassenbon</h2>
+                <div class="mb-3"><label for="store" class="form-label">Händler</label><input type="text" id="store" name="store" class="form-control" value="{{ receipt.store }}" required></div>
+                <div class="mb-3"><label for="purchase_date" class="form-label">Datum</label><input type="date" id="purchase_date" name="purchase_date" class="form-control" value="{{ receipt.purchase_date }}" required></div>
+                <div class="mb-3"><label for="price" class="form-label">Gesamtbetrag</label><input type="text" id="price" name="price" class="form-control" value="{{ '%.2f'|format(receipt.price_cents / 100) }}" required></div>
+                <div class="mb-3"><label for="paid_by" class="form-label">Bezahlt von</label><select id="paid_by" name="paid_by" class="form-select" required> {% for member in members %} <option value="{{ member.id }}" {% if member.id == receipt.paid_by.id %}selected{% endif %}>
+                            {{ member.name }}
+                        </option> {% endfor %} </select></div>
+                <hr class="my-4">
+                <h2 class="mb-3">Artikel</h2> {% for item in receipt.items %} {% set item_index = loop.index0 %} <div class="card mb-3">
+                    <div class="card-body">
+                        <h3 class="h5">Artikel {{ loop.index }}</h3><input type="hidden" name="item_index" value="{{ item_index }}">
+                        <div class="mb-3"><label for="item_name_{{ item_index }}" class="form-label"> Artikelname </label><input type="text" id="item_name_{{ item_index }}" name="item_name_{{ item_index }}" class="form-control" value="{{ item.name }}" required></div>
+                        <div class="mb-3"><label for="item_price_{{ item_index }}" class="form-label"> Preis </label><input type="text" id="item_price_{{ item_index }}" name="item_price_{{ item_index }}" class="form-control" value="{{ '%.2f'|format(item.price_cents / 100) }}" required></div>
+                        <div class="mb-3"><label for="item_members_{{ item_index }}" class="form-label"> Zugeordnet zu </label><select id="item_members_{{ item_index }}" name="item_members_{{ item_index }}" class="form-select" multiple required> {% for member in members %} <option value="{{ member.id }}" {% if member.id in item.assigned_to | map(attribute='id') | list %} selected {% endif %}>
+                                    {{ member.name }}
+                                </option> {% endfor %} </select>
+                            <div class="form-text"> Mit Strg bzw. Cmd können mehrere Mitglieder ausgewählt werden. </div>
+                        </div>
+                    </div>
+                </div> {% endfor %} {% if not receipt.items %} <div class="alert alert-secondary"> Keine Artikel vorhanden. </div> {% endif %} <button type="submit" class="btn btn-primary"> Speichern </button><a href="/receipts" class="btn btn-secondary"> Abbrechen </a>
+            </form>
+        </main>
+    </body>
+</html>

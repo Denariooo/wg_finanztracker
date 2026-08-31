@@ -32,6 +32,7 @@ from wg_finanztracker.persistence.database import (
     get_receipt,
     get_receipts,
     update_member,
+    update_receipt,
 )
 
 app = Flask(
@@ -161,6 +162,142 @@ def delete_member_route(member_id: int):
 def receipts():
     """Render the list of all receipts"""
     return render_template("receipts.html", receipts=get_receipts())
+
+
+@app.route("/receipts/<int:receipt_id>/edit", methods=["GET", "POST"])
+def edit_receipt(receipt_id: int):
+    """Display and update a receipt"""
+    receipt = get_receipt(receipt_id)
+
+    if receipt is None:
+        abort(404)
+
+    members = get_members()
+    members_by_id = {member.id: member for member in members}
+
+    if request.method == "GET":
+        return render_template(
+            "receipt_edit.html",
+            receipt=receipt,
+            receipt_id=receipt_id,
+            members=members,
+        )
+
+    store = request.form.get("store", "").strip()
+    purchase_date_value = request.form.get("purchase_date", "").strip()
+    price_value = request.form.get("price", "").strip()
+    paid_by_value = request.form.get("paid_by", "").strip()
+
+    try:
+        if not store:
+            raise ValueError("Bitte einen Händler angeben.")
+
+        if not purchase_date_value:
+            raise ValueError("Bitte ein Datum angeben.")
+
+        try:
+            purchase_date = date.fromisoformat(purchase_date_value)
+        except ValueError as error:
+            raise ValueError("Das angegebene Datum ist ungültig.") from error
+
+        if not price_value:
+            raise ValueError("Bitte einen Gesamtbetrag angeben.")
+
+        price_cents = parse_price_cents(price_value)
+
+        if not paid_by_value:
+            raise ValueError("Bitte auswählen, wer den Einkauf bezahlt hat.")
+
+        try:
+            paid_by_id = int(paid_by_value)
+        except ValueError as error:
+            raise ValueError("Ungültiges Mitglied.") from error
+
+        paid_by = members_by_id.get(paid_by_id)
+
+        if paid_by is None:
+            raise ValueError("Das ausgewählte Mitglied existiert nicht.")
+
+        item_indexes = request.form.getlist("item_index")
+
+        if not item_indexes:
+            raise ValueError("Der Kassenbon muss mindestens einen Artikel enthalten.")
+
+        items: list[Item] = []
+
+        for index in item_indexes:
+            name = request.form.get(
+                f"item_name_{index}",
+                "",
+            ).strip()
+
+            item_price_value = request.form.get(
+                f"item_price_{index}",
+                "",
+            ).strip()
+
+            member_values = request.form.getlist(f"item_members_{index}")
+
+            if not name:
+                raise ValueError("Jeder Artikel benötigt einen Namen.")
+
+            if not item_price_value:
+                raise ValueError(f"Für den Artikel '{name}' fehlt der Preis.")
+
+            item_price_cents = parse_price_cents(item_price_value)
+
+            if not member_values:
+                raise ValueError(
+                    f"Der Artikel '{name}' muss mindestens "
+                    "einem Mitglied zugeordnet werden."
+                )
+
+            assigned_members = []
+
+            for member_value in member_values:
+                try:
+                    member_id = int(member_value)
+                except ValueError as error:
+                    raise ValueError("Ungültige Mitgliederzuordnung.") from error
+
+                member = members_by_id.get(member_id)
+
+                if member is None:
+                    raise ValueError("Ein ausgewähltes Mitglied existiert nicht.")
+
+                assigned_members.append(member)
+
+            items.append(
+                Item(
+                    name=name,
+                    price_cents=item_price_cents,
+                    assigned_to=assigned_members,
+                )
+            )
+
+        updated_receipt = Receipt(
+            store=store,
+            purchase_date=purchase_date,
+            price_cents=price_cents,
+            paid_by=paid_by,
+            items=items,
+        )
+
+        update_receipt(
+            receipt_id,
+            updated_receipt,
+        )
+
+    except ValueError as error:
+        return render_template(
+            "receipt_edit.html",
+            receipt=receipt,
+            receipt_id=receipt_id,
+            members=members,
+            error=str(error),
+        )
+
+    return redirect(f"/receipts/{receipt_id}")
 
 
 @app.route("/receipts/<int:receipt_id>")

@@ -415,6 +415,41 @@ def update_receipt(receipt_id: int, receipt: Receipt) -> None:
         if cursor.rowcount == 0:
             raise ValueError("Receipt not found")
 
+        cursor.execute(
+            """
+            SELECT id
+            FROM items
+            WHERE receipt_id = %s
+            """,
+            (receipt_id,),
+        )
+
+        existing_item_ids = [row[0] for row in cursor.fetchall()]
+
+        for item_id in existing_item_ids:
+            cursor.execute(
+                "DELETE FROM item_assignments WHERE item_id = %s",
+                (item_id,),
+            )
+
+        cursor.execute(
+            "DELETE FROM items WHERE receipt_id = %s",
+            (receipt_id,),
+        )
+
+        for item in receipt.items:
+            item_id = _add_item(
+                cursor,
+                receipt_id,
+                item,
+            )
+            for member in item.assigned_to:
+                _assign_member_to_item(
+                    cursor,
+                    item_id,
+                    member.id,
+                )
+
 
 def delete_receipt(receipt_id: int) -> None:
     """Delete a receipt by id"""
