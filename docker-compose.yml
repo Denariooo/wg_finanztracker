@@ -10,4 +10,4 @@ services:
     volumes:
       - ./db:/var/lib/postgresql/data
       - ./src/wg_finanztracker/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-      - ./src/wg_finanztracker/resources/data.sql:/docker-entrypoint-initdb.d/data.sql
+#      - ./src/wg_finanztracker/resources/data.sql:/docker-entrypoint-initdb.d/data.sql
