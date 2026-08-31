@@ -1,5 +1,4 @@
 from datetime import date
-from logging import disable
 
 import pytest
 

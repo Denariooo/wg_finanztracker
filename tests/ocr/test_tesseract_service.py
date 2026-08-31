@@ -3,7 +3,6 @@ from datetime import date
 from wg_finanztracker.ocr.ocr_models import (
     OcrItem,
     OcrReceipt,
-    OcrTextLine,
     OcrWord,
 )
 from wg_finanztracker.ocr.quality import OcrCandidate
