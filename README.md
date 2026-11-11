@@ -1,5 +1,9 @@
 # WG Finanztracker
 
+## Dokumentation
+
+- [Projektbericht (PDF)](src/wg_finanztracker/docs/Projektbericht.pdf)
+
 ## Voraussetzungen
 
 * Python 3.14+
